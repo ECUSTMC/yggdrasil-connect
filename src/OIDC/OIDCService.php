@@ -243,7 +243,7 @@ class OIDCService
         return json_decode($record->payload, true);
     }
 
-    public function createGrant(string $clientId, string $accountId, array $scopes, string $interactionId): string
+    public function createGrant(string $clientId, string $accountId, array $scopes, string $interactionId, ?string $profileUuid = null): string
     {
         $grantId = bin2hex(random_bytes(16));
 
@@ -254,6 +254,7 @@ class OIDCService
             'resources' => [
                 self::BS_RESOURCE_INDICATOR => implode(' ', $scopes),
             ],
+            'selectedProfile' => $profileUuid,
             'created_at' => Carbon::now()->toIso8601String(),
         ];
 
@@ -275,7 +276,36 @@ class OIDCService
             return null;
         }
 
-        return json_decode($record->payload, true);
+        $payload = json_decode($record->payload, true);
+        $payload['id'] = $record->id;
+        $payload['interactionId'] = $record->uid;
+
+        return $payload;
+    }
+
+    public function updateGrant(string $grantId, array $payload): bool
+    {
+        $updatePayload = $payload;
+        unset($updatePayload['id'], $updatePayload['interactionId']);
+
+        return DB::table('yggc_grants')->where('id', $grantId)->update([
+            'payload' => json_encode($updatePayload),
+            'updated_at' => Carbon::now(),
+        ]) > 0;
+    }
+
+    public function findGrantByInteractionId(string $interactionId): ?array
+    {
+        $record = DB::table('yggc_grants')->where('uid', $interactionId)->first();
+        if (!$record) {
+            return null;
+        }
+
+        $payload = json_decode($record->payload, true);
+        $payload['id'] = $record->id;
+        $payload['interactionId'] = $record->uid;
+
+        return $payload;
     }
 
     public function createAuthorizationCode(string $clientId, string $accountId, string $redirectUri, array $scopes, ?string $nonce, ?string $codeChallenge, ?string $codeChallengeMethod, string $grantId): string
@@ -479,7 +509,7 @@ class OIDCService
             throw new OIDCException('authorization_pending', 'The user has not yet completed the device flow');
         }
 
-        if ($dcPayload['consumed']) {
+        if ($dcRecord->consumed) {
             throw new OIDCException('expired_token', 'Device code already used');
         }
 
@@ -509,7 +539,6 @@ class OIDCService
     {
         $expiresIn1 = intval(option('ygg_token_expire_1', 259200));
         $expiresIn2 = intval(option('ygg_token_expire_2', 604800));
-        $now = Carbon::now();
 
         $accessToken = $this->issueAccessToken($user, $clientId, $scopes, $grantId, $expiresIn1);
         $refreshToken = $this->issueRefreshToken($user, $clientId, $scopes, $grantId, $expiresIn2);
@@ -538,9 +567,9 @@ class OIDCService
 
         $selectedProfile = null;
         if (in_array(Scope::PROFILE_SELECT, $scopes)) {
-            $codeIdToUUID = DB::table('code_id_to_uuid')->where('code_id', $grantId)->first();
-            if ($codeIdToUUID) {
-                $selectedProfile = $codeIdToUUID->uuid;
+            $grant = $this->findGrant($grantId);
+            if ($grant && !empty($grant['selectedProfile'])) {
+                $selectedProfile = $grant['selectedProfile'];
             }
         }
 
@@ -643,9 +672,9 @@ class OIDCService
         }
 
         if (in_array(Scope::PROFILE_SELECT, $scopes)) {
-            $codeIdToUUID = DB::table('code_id_to_uuid')->where('code_id', $grantId)->first();
-            if ($codeIdToUUID) {
-                $uuid = UUID::where('uuid', $codeIdToUUID->uuid)->first();
+            $grant = $this->findGrant($grantId);
+            if ($grant && !empty($grant['selectedProfile'])) {
+                $uuid = UUID::where('uuid', $grant['selectedProfile'])->first();
                 if ($uuid && $uuid->player) {
                     $claims['selectedProfile'] = [
                         'id' => $uuid->uuid,
@@ -707,9 +736,9 @@ class OIDCService
             'name' => self::ACCESS_TOKEN_NAME,
             'scopes' => json_encode($scopes),
             'revoked' => false,
-            'created_at' => $now,
-            'updated_at' => $now,
-            'expires_at' => $now->addSeconds($expiresIn),
+            'created_at' => $now->toDateTimeString(),
+            'updated_at' => $now->toDateTimeString(),
+            'expires_at' => $now->addSeconds($expiresIn)->toDateTimeString(),
         ]);
     }
 
@@ -832,7 +861,7 @@ class OIDCService
         ];
     }
 
-    public function verifyDeviceCode(string $userCode, BaseUser $user, array $scopes): bool
+    public function verifyDeviceCode(string $userCode, BaseUser $user, array $scopes, ?string $profileUuid = null): bool
     {
         $record = DB::table('yggc_device_codes')->where('userCode', $userCode)->first();
         if (!$record) {
@@ -840,7 +869,7 @@ class OIDCService
         }
 
         $payload = json_decode($record->payload, true);
-        if ($payload['consumed'] || !empty($payload['accountId'])) {
+        if ($record->consumed || !empty($payload['accountId'])) {
             return false;
         }
 
@@ -850,7 +879,7 @@ class OIDCService
             return false;
         }
 
-        $grantId = $this->createGrant($payload['clientId'], (string) $user->uid, $scopes, $record->id);
+        $grantId = $this->createGrant($payload['clientId'], (string) $user->uid, $scopes, $record->id, $profileUuid);
 
         $payload['accountId'] = (string) $user->uid;
         $payload['grantId'] = $grantId;

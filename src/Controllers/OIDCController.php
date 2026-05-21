@@ -127,8 +127,8 @@ class OIDCController extends Controller
         $scopes = $authRequest['scopes'];
 
         if (in_array(Scope::PROFILE_SELECT, $scopes)) {
-            $codeIdToUUID = DB::table('code_id_to_uuid')->where('code_id', $grantId)->first();
-            if (!$codeIdToUUID) {
+            $grant = $this->oidc->findGrant($grantId);
+            if (!$grant || empty($grant['selectedProfile'])) {
                 $bsUser = User::find($user->uid);
                 return view('LittleSkin\YggdrasilConnect::select-profile', [
                     'name' => $authRequest['client']->name,
@@ -173,6 +173,12 @@ class OIDCController extends Controller
             };
 
             return response()->json($e->toArray(), $statusCode);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'error' => 'server_error',
+                'error_description' => $e->getMessage(),
+                'error_file' => $e->getFile().':'.$e->getLine(),
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
         return response()->json($result);
@@ -292,7 +298,42 @@ class OIDCController extends Controller
             $payload = json_decode($record->payload, true);
             $scopes = $payload['scopes'] ?? ['openid'];
 
-            $success = $this->oidc->verifyDeviceCode($request->input('user_code'), $user, $scopes);
+            if (in_array(Scope::PROFILE_SELECT, $scopes) && !$request->has('profile_uuid')) {
+                $bsUser = User::find($user->uid);
+                $profiles = Profile::getAvailableProfiles($bsUser);
+
+                if (count($profiles) > 1) {
+                    return view('LittleSkin\YggdrasilConnect::device', [
+                        'select_profile' => true,
+                        'user_code' => $request->input('user_code'),
+                        'availableProfiles' => $profiles,
+                    ]);
+                }
+
+                if (count($profiles) === 1) {
+                    $profileUuid = $profiles[0]['id'];
+                    $success = $this->oidc->verifyDeviceCode($request->input('user_code'), $user, $scopes, $profileUuid);
+
+                    if ($success) {
+                        return view('LittleSkin\YggdrasilConnect::device', [
+                            'success' => true,
+                        ]);
+                    }
+
+                    return view('LittleSkin\YggdrasilConnect::device', [
+                        'error' => trans('LittleSkin\\YggdrasilConnect::front-end.device.invalid-code'),
+                    ]);
+                }
+
+                if (count($profiles) === 0) {
+                    return view('LittleSkin\YggdrasilConnect::device', [
+                        'error' => trans('LittleSkin\\YggdrasilConnect::front-end.select-profile.no-available-profiles'),
+                    ]);
+                }
+            }
+
+            $profileUuid = $request->input('profile_uuid');
+            $success = $this->oidc->verifyDeviceCode($request->input('user_code'), $user, $scopes, $profileUuid);
 
             if ($success) {
                 return view('LittleSkin\YggdrasilConnect::device', [
@@ -387,18 +428,24 @@ class OIDCController extends Controller
         $scopesInBSAuth = json_decode($authCode->scopes, true) ?? [];
         $scopes = array_values(array_intersect($scopesInSession, $scopesInBSAuth));
 
+        $profileUuid = null;
+        $existingGrant = $this->oidc->findGrantByInteractionId($code);
         if (in_array(Scope::PROFILE_SELECT, $scopes)) {
-            $codeIdToUUID = DB::table('code_id_to_uuid')->where('code_id', $code)->first();
-            if (!$codeIdToUUID) {
+            if (!$existingGrant || empty($existingGrant['selectedProfile'])) {
                 return redirect()->away($params['redirect_uri'].'?'.http_build_query([
                     'error' => 'invalid_grant',
                     'error_description' => 'Profile not selected',
                     'state' => $params['state'] ?? null,
                 ]));
             }
+            $profileUuid = $existingGrant['selectedProfile'];
         }
 
-        $grantId = $this->oidc->createGrant($params['client_id'], (string) $user->uid, $scopes, $code);
+        if ($existingGrant) {
+            $grantId = $existingGrant['id'];
+        } else {
+            $grantId = $this->oidc->createGrant($params['client_id'], (string) $user->uid, $scopes, $code, $profileUuid);
+        }
 
         $authCode->revoked = true;
         $authCode->save();
@@ -461,9 +508,16 @@ class OIDCController extends Controller
             $codeId = $authCode->id;
             $scopes = json_decode($authCode->scopes);
             if (in_array(Scope::PROFILE_SELECT, $scopes)) {
+                $grantId = $this->oidc->createGrant(
+                    (string) $client->id,
+                    (string) $user->uid,
+                    $scopes,
+                    $authCode->id
+                );
+
                 return view('LittleSkin\YggdrasilConnect::select-profile', [
                     'name' => $client->name,
-                    'code_id' => $codeId,
+                    'code_id' => $grantId,
                     'state' => $state,
                     'availableProfiles' => Profile::getAvailableProfiles($user),
                 ]);
@@ -497,27 +551,22 @@ class OIDCController extends Controller
             $state = $request->input('state');
             $selectedProfile = $request->input('selectedProfile');
 
-            if (DB::table('code_id_to_uuid')->where('code_id', $codeId)->exists()) {
-                throw new InvalidRequestException(trans('LittleSkin\\YggdrasilConnect::exceptions.yggc.authorization-code-invalid'));
-            }
-
-            $authCode = AuthCode::where(['id' => $codeId, 'revoked' => false])->first();
             $user = auth()->user();
-            if (empty($authCode) || $authCode->user_id != $user->uid || $authCode->expires_at->isPast() || $authCode->revoked) {
-                throw new InvalidRequestException(trans('LittleSkin\\YggdrasilConnect::exceptions.yggc.authorization-code-invalid'));
-            }
 
             $uuid = UUID::where('uuid', $selectedProfile)->first();
             if (empty($uuid) || $uuid->player->uid != $user->uid) {
                 throw new InvalidRequestException(trans('LittleSkin\\YggdrasilConnect::exceptions.yggc.authorization-code-invalid'));
             }
 
-            DB::table('code_id_to_uuid')->insert([
-                'code_id' => $codeId,
-                'uuid' => $uuid->uuid,
-            ]);
+            $grant = $this->oidc->findGrant($codeId);
+            if (!$grant) {
+                throw new InvalidRequestException(trans('LittleSkin\\YggdrasilConnect::exceptions.yggc.authorization-code-invalid'));
+            }
 
-            return $this->interactionSuccessRedirect($state, $codeId);
+            $grant['selectedProfile'] = $uuid->uuid;
+            $this->oidc->updateGrant($codeId, $grant);
+
+            return $this->interactionSuccessRedirect($state, $grant['interactionId']);
         } catch (InvalidRequestException $e) {
             return $this->interactionErrorRedirect($request->input('state'), $e->error, $e->getMessage());
         }
