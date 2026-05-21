@@ -9,7 +9,7 @@ class CheckIsIssuerSet
 {
     public function handle(Request $request, \Closure $next)
     {
-        if (empty(option('ygg_connect_server_url'))) {
+        if (empty(option('site_url'))) {
             abort(Response::HTTP_INTERNAL_SERVER_ERROR, trans('LittleSkin\\YggdrasilConnect::exceptions.yggc.issuer-not-set'));
         }
 

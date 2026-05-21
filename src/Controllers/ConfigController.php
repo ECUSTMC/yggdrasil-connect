@@ -102,8 +102,6 @@ class ConfigController extends Controller
         }
 
         $yggcForm = Option::form('yggc', 'Yggdrasil Connect', function (OptionForm $form) {
-            $form->text('ygg_connect_server_url', trans('LittleSkin\\YggdrasilConnect::config.yggc.server_url.title'))
-                ->description(trans('LittleSkin\\YggdrasilConnect::config.yggc.server_url.description'));
             $form->text('ygg_device_code_expires_in', trans('LittleSkin\\YggdrasilConnect::config.yggc.device_code_expires_in.title'))
                 ->description(trans('LittleSkin\\YggdrasilConnect::config.yggc.device_code_expires_in.description'));
             $form->text('ygg_grant_expires_in', trans('LittleSkin\\YggdrasilConnect::config.yggc.grant_expires_in.title'))
@@ -185,9 +183,9 @@ class ConfigController extends Controller
             $result['meta']['feature.non_email_login'] = true;
         }
 
-        $yggc_server = option('ygg_connect_server_url');
-        if (!empty($yggc_server)) {
-            $result['meta']['feature.openid_configuration_url'] = "$yggc_server/.well-known/openid-configuration";
+        $siteUrl = option('site_url');
+        if (!empty($siteUrl)) {
+            $result['meta']['feature.openid_configuration_url'] = "$siteUrl/.well-known/openid-configuration";
         }
 
         return json($result)->header('Access-Control-Allow-Origin', '*');

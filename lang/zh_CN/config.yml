@@ -99,9 +99,6 @@ union:
       invalid: 密钥无效，此站点无法授权Union OAuth2
 
 yggc:
-  server_url:
-    title: OpenID 提供者标识符
-    description: 你的 OIDC 提供者的根地址，必须以 <code>https://</code> 开头且不以 <code>/</code> 结尾。请确保用户可以正常访问该 URL。
   disable_authserver:
     title: 禁用 Auth Server
     hint: 即 /authserver 下的 API
