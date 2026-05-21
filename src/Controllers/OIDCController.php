@@ -15,6 +15,7 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Passport\AuthCode;
 use Laravel\Passport\Client;
@@ -52,9 +53,9 @@ class OIDCController extends Controller
         try {
             $authRequest = $this->oidc->validateAuthorizationRequest($request->all());
         } catch (OIDCException $e) {
-            if ($e->state && !empty($authRequest['redirect_uri'] ?? $request->input('redirect_uri'))) {
-                $separator = ($request->input('response_type') === 'code') ? '?' : '#';
-                return redirect()->away($request->input('redirect_uri').$separator.http_build_query($e->toArray()));
+            if ($e->redirectUri) {
+                $separator = in_array('code', $e->responseTypes) ? '?' : '#';
+                return redirect()->away($e->redirectUri.$separator.http_build_query($e->toArray()));
             }
 
             return response()->json($e->toArray(), Response::HTTP_BAD_REQUEST);
@@ -64,9 +65,23 @@ class OIDCController extends Controller
             return $this->handleAuthenticatedUser($authRequest, Auth::user());
         }
 
+        // prompt=none requires an authenticated user
+        if (in_array('none', $authRequest['prompt'])) {
+            $separator = in_array('code', $authRequest['response_types']) ? '?' : '#';
+            $errorParams = [
+                'error' => 'login_required',
+                'error_description' => 'The user is not authenticated and prompt=none was requested',
+            ];
+            if ($authRequest['state'] !== null) {
+                $errorParams['state'] = $authRequest['state'];
+            }
+
+            return redirect()->away($authRequest['redirect_uri'].$separator.http_build_query($errorParams));
+        }
+
         $interactionId = $this->oidc->createInteraction($authRequest);
 
-        return redirect()->to($this->oidc->getIssuer()."/interaction/$interactionId");
+        return redirect()->to($this->oidc->getIssuer()."/yggc/interaction/$interactionId");
     }
 
     private function handleAuthenticatedUser(array $authRequest, BaseUser $user)
@@ -74,9 +89,23 @@ class OIDCController extends Controller
         $clientId = (string) $authRequest['client']->id;
         $accountId = (string) $user->uid;
         $scopes = $authRequest['scopes'];
+        $prompt = $authRequest['prompt'] ?? [];
 
         $existingGrant = $this->findExistingGrant($clientId, $accountId);
-        if ($existingGrant && $this->grantCoversScopes($existingGrant, $scopes)) {
+
+        // prompt=consent forces the consent screen even if a valid grant exists
+        // prompt=login forces re-authentication (redirect to login page)
+        $forceConsent = in_array('consent', $prompt);
+        $forceLogin = in_array('login', $prompt);
+
+        if ($forceLogin) {
+            Auth::logout();
+            $interactionId = $this->oidc->createInteraction($authRequest);
+
+            return redirect()->to($this->oidc->getIssuer()."/yggc/interaction/$interactionId");
+        }
+
+        if ($existingGrant && $this->grantCoversScopes($existingGrant, $scopes) && !$forceConsent) {
             return $this->completeAuthorization($authRequest, $user, $existingGrant['id']);
         }
 
@@ -170,15 +199,20 @@ class OIDCController extends Controller
                 'authorization_pending' => Response::HTTP_BAD_REQUEST,
                 'slow_down' => Response::HTTP_BAD_REQUEST,
                 'expired_token' => Response::HTTP_BAD_REQUEST,
+                'access_denied' => Response::HTTP_BAD_REQUEST,
                 default => Response::HTTP_BAD_REQUEST,
             };
 
             return response()->json($e->toArray(), $statusCode);
         } catch (\Throwable $e) {
+            Log::channel('ygg')->error('OIDC server error: '.$e->getMessage(), [
+                'file' => $e->getFile().':'.$e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'error' => 'server_error',
-                'error_description' => $e->getMessage(),
-                'error_file' => $e->getFile().':'.$e->getLine(),
+                'error_description' => 'Internal server error',
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
@@ -293,6 +327,15 @@ class OIDCController extends Controller
             $user = auth()->user();
             if (!$user) {
                 return redirect()->route('login');
+            }
+
+            // 用户拒绝设备授权
+            if ($request->has('deny')) {
+                $this->oidc->denyDeviceCode($request->input('user_code'));
+
+                return view('LittleSkin\YggdrasilConnect::device', [
+                    'denied' => true,
+                ]);
             }
 
             $record = DB::table('yggc_device_codes')->where('userCode', $request->input('user_code'))->first();
@@ -604,7 +647,7 @@ class OIDCController extends Controller
     private function interactionSuccessRedirect(string $state, string $code): RedirectResponse
     {
         $issuer = $this->oidc->getIssuer();
-        $callbackUrl = "$issuer/interaction/$state/callback";
+        $callbackUrl = "$issuer/yggc/interaction/$state/callback";
 
         return redirect()->away("$callbackUrl?".http_build_query(['code' => $code, 'state' => $state]));
     }
@@ -612,7 +655,7 @@ class OIDCController extends Controller
     private function interactionErrorRedirect(string $state, string $error, string $errorDescription): RedirectResponse
     {
         $issuer = $this->oidc->getIssuer();
-        $callbackUrl = "$issuer/interaction/$state/callback";
+        $callbackUrl = "$issuer/yggc/interaction/$state/callback";
 
         return redirect()->away("$callbackUrl?".http_build_query([
             'error' => $error,

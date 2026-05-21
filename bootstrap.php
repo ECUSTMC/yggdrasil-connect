@@ -152,7 +152,11 @@ return function (Dispatcher $events, Filter $filter, Request $request) {
                 });
 
                 Route::middleware(['LittleSkin\YggdrasilConnect\Middleware\CheckIsIssuerSet'])->group(function () {
+                    // OpenID Discovery must remain at root path per spec
                     Route::get('.well-known/openid-configuration', 'OIDCController@discovery');
+                });
+
+                Route::prefix('yggc')->middleware(['LittleSkin\YggdrasilConnect\Middleware\CheckIsIssuerSet'])->group(function () {
                     Route::get('jwks', 'OIDCController@jwks');
                     Route::get('auth', 'OIDCController@authorization');
                     Route::post('token', 'OIDCController@token');

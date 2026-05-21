@@ -7,6 +7,8 @@ class OIDCException extends \Exception
     public string $error;
     public string $errorDescription;
     public ?string $state;
+    public ?string $redirectUri = null;
+    public array $responseTypes = [];
 
     public function __construct(string $error, string $errorDescription, ?string $state = null)
     {
