@@ -58,7 +58,17 @@ class OIDCService
 
     public function getIssuer(): string
     {
-        return rtrim(option('site_url'), '/');
+        $url = rtrim(option('site_url'), '/');
+
+        if (!preg_match('#^https://#i', $url) && !preg_match('#^http://(localhost|127\.0\.0\.1|::1)#i', $url)) {
+            throw new \RuntimeException('site_url must use HTTPS protocol (except for localhost development). Current: '.$url);
+        }
+
+        if (str_contains($url, '#') || (str_contains($url, '?') && !preg_match('#^http://(localhost|127\.0\.0\.1|::1)#i', $url))) {
+            throw new \RuntimeException('site_url must not contain query parameters or fragments. Current: '.$url);
+        }
+
+        return $url;
     }
 
     public function getDiscoveryConfig(): array
@@ -67,10 +77,10 @@ class OIDCService
 
         $config = [
             'issuer' => $issuer,
-            'authorization_endpoint' => "$issuer/auth",
-            'token_endpoint' => "$issuer/token",
+            'authorization_endpoint' => "$issuer/yggc/auth",
+            'token_endpoint' => "$issuer/yggc/token",
             'userinfo_endpoint' => "$issuer/yggc/userinfo",
-            'jwks_uri' => "$issuer/jwks",
+            'jwks_uri' => "$issuer/yggc/jwks",
             'scopes_supported' => [
                 'openid',
                 'profile',
@@ -108,9 +118,9 @@ class OIDCService
             'request_parameter_supported' => false,
             'request_uri_parameter_supported' => false,
             'require_request_uri_registration' => false,
-            'revocation_endpoint' => "$issuer/revoke",
+            'revocation_endpoint' => "$issuer/yggc/revoke",
             'revocation_endpoint_auth_methods_supported' => ['client_secret_post', 'none'],
-            'device_authorization_endpoint' => "$issuer/device/auth",
+            'device_authorization_endpoint' => "$issuer/yggc/device/auth",
             'code_challenge_methods_supported' => ['S256'],
             'token_endpoint_auth_signing_alg_values_supported' => ['RS256'],
         ];
@@ -182,28 +192,62 @@ class OIDCService
         $validResponseTypes = ['code', 'id_token'];
         foreach ($responseTypes as $rt) {
             if (!in_array($rt, $validResponseTypes)) {
-                throw new OIDCException('unsupported_response_type', "Unsupported response type: $rt", $params['state'] ?? null);
+                $e = new OIDCException('unsupported_response_type', "Unsupported response type: $rt", $params['state'] ?? null);
+                $e->redirectUri = $params['redirect_uri'];
+                $e->responseTypes = $responseTypes;
+                throw $e;
             }
         }
 
         $scopes = explode(' ', $params['scope']);
         if (!in_array(Scope::OPENID, $scopes)) {
-            throw new OIDCException('invalid_scope', 'The openid scope is required', $params['state'] ?? null);
+            $e = new OIDCException('invalid_scope', 'The openid scope is required', $params['state'] ?? null);
+            $e->redirectUri = $params['redirect_uri'];
+            $e->responseTypes = $responseTypes;
+            throw $e;
         }
 
         $validScopes = Scope::getAllScopes();
         foreach ($scopes as $scope) {
             if (!in_array($scope, $validScopes)) {
-                throw new OIDCException('invalid_scope', "Invalid scope: $scope", $params['state'] ?? null);
+                $e = new OIDCException('invalid_scope', "Invalid scope: $scope", $params['state'] ?? null);
+                $e->redirectUri = $params['redirect_uri'];
+                $e->responseTypes = $responseTypes;
+                throw $e;
             }
         }
 
+        // Validate prompt parameter
+        $prompt = isset($params['prompt']) ? explode(' ', $params['prompt']) : [];
+        $validPrompts = ['none', 'login', 'consent'];
+        foreach ($prompt as $p) {
+            if (!in_array($p, $validPrompts)) {
+                $e = new OIDCException('invalid_request', "Invalid prompt value: $p", $params['state'] ?? null);
+                $e->redirectUri = $params['redirect_uri'];
+                $e->responseTypes = $responseTypes;
+                throw $e;
+            }
+        }
+
+        if (in_array('none', $prompt) && (in_array('login', $prompt) || in_array('consent', $prompt))) {
+            $e = new OIDCException('invalid_request', 'prompt=none cannot be combined with other prompt values', $params['state'] ?? null);
+            $e->redirectUri = $params['redirect_uri'];
+            $e->responseTypes = $responseTypes;
+            throw $e;
+        }
+
         if (in_array(Scope::PROFILE_SELECT, $scopes) && in_array(Scope::PROFILE_READ, $scopes)) {
-            throw new OIDCException('invalid_scope', 'Cannot request both PROFILE_SELECT and PROFILE_READ', $params['state'] ?? null);
+            $e = new OIDCException('invalid_scope', 'Cannot request both PROFILE_SELECT and PROFILE_READ', $params['state'] ?? null);
+            $e->redirectUri = $params['redirect_uri'];
+            $e->responseTypes = $responseTypes;
+            throw $e;
         }
 
         if (in_array(Scope::SERVER_JOIN, $scopes) && !in_array(Scope::PROFILE_SELECT, $scopes)) {
-            throw new OIDCException('invalid_scope', 'SERVER_JOIN requires PROFILE_SELECT', $params['state'] ?? null);
+            $e = new OIDCException('invalid_scope', 'SERVER_JOIN requires PROFILE_SELECT', $params['state'] ?? null);
+            $e->redirectUri = $params['redirect_uri'];
+            $e->responseTypes = $responseTypes;
+            throw $e;
         }
 
         return [
@@ -215,6 +259,7 @@ class OIDCService
             'nonce' => $params['nonce'] ?? null,
             'code_challenge' => $params['code_challenge'] ?? null,
             'code_challenge_method' => $params['code_challenge_method'] ?? null,
+            'prompt' => $prompt,
         ];
     }
 
@@ -232,6 +277,7 @@ class OIDCService
                 'nonce' => $authRequest['nonce'],
                 'code_challenge' => $authRequest['code_challenge'],
                 'code_challenge_method' => $authRequest['code_challenge_method'],
+                'prompt' => implode(' ', $authRequest['prompt'] ?? []),
             ],
             'prompt' => [
                 'name' => 'login',
@@ -298,6 +344,13 @@ class OIDCService
         $payload['id'] = $record->id;
         $payload['interactionId'] = $record->uid;
 
+        $grantExpiresIn = intval(option('ygg_grant_expires_in', 86400));
+        $createdAt = Carbon::parse($record->created_at);
+        if ($createdAt->addSeconds($grantExpiresIn)->isPast()) {
+            DB::table('yggc_grants')->where('id', $grantId)->delete();
+            return null;
+        }
+
         return $payload;
     }
 
@@ -322,6 +375,13 @@ class OIDCService
         $payload = json_decode($record->payload, true);
         $payload['id'] = $record->id;
         $payload['interactionId'] = $record->uid;
+
+        $grantExpiresIn = intval(option('ygg_grant_expires_in', 86400));
+        $createdAt = Carbon::parse($record->created_at);
+        if ($createdAt->addSeconds($grantExpiresIn)->isPast()) {
+            DB::table('yggc_grants')->where('id', $record->id)->delete();
+            return null;
+        }
 
         return $payload;
     }
@@ -357,25 +417,29 @@ class OIDCService
 
     public function consumeAuthorizationCode(string $code): ?array
     {
+        $affected = DB::table('yggc_authorization_codes')
+            ->where('id', $code)
+            ->where('consumed', false)
+            ->update([
+                'consumed' => true,
+                'updated_at' => Carbon::now(),
+            ]);
+
+        if ($affected === 0) {
+            return null;
+        }
+
         $record = DB::table('yggc_authorization_codes')->where('id', $code)->first();
         if (!$record) {
             return null;
         }
 
         $payload = json_decode($record->payload, true);
-        if ($payload['consumed']) {
-            return null;
-        }
 
         $createdAt = Carbon::parse($record->created_at);
         if ($createdAt->addMinutes(10)->isPast()) {
             return null;
         }
-
-        DB::table('yggc_authorization_codes')->where('id', $code)->update([
-            'consumed' => true,
-            'updated_at' => Carbon::now(),
-        ]);
 
         return $payload;
     }
@@ -538,6 +602,11 @@ class OIDCService
         }
 
         if (empty($dcPayload['accountId'])) {
+            // 用户已拒绝
+            if (!empty($dcPayload['denied'])) {
+                throw new OIDCException('access_denied', 'The user denied the authorization request');
+            }
+
             $interval = intval($dcPayload['interval'] ?? 5);
             $lastPollAt = isset($dcPayload['lastPollAt']) ? Carbon::parse($dcPayload['lastPollAt']) : null;
             $now = Carbon::now();
@@ -900,8 +969,8 @@ class OIDCService
         return [
             'device_code' => $deviceCode,
             'user_code' => $userCode,
-            'verification_uri' => $this->getIssuer().'/device',
-            'verification_uri_complete' => $this->getIssuer().'/device?user_code='.$userCode,
+            'verification_uri' => $this->getIssuer().'/yggc/device',
+            'verification_uri_complete' => $this->getIssuer().'/yggc/device?user_code='.$userCode,
             'expires_in' => $expiresIn,
             'interval' => $interval,
         ];
@@ -930,6 +999,33 @@ class OIDCService
         $payload['accountId'] = (string) $user->uid;
         $payload['grantId'] = $grantId;
 
+        DB::table('yggc_device_codes')->where('id', $record->id)->update([
+            'payload' => json_encode($payload),
+            'updated_at' => Carbon::now(),
+        ]);
+
+        return true;
+    }
+
+    public function denyDeviceCode(string $userCode): bool
+    {
+        $record = DB::table('yggc_device_codes')->where('userCode', $userCode)->first();
+        if (!$record) {
+            return false;
+        }
+
+        $payload = json_decode($record->payload, true);
+        if ($record->consumed || !empty($payload['accountId']) || !empty($payload['denied'])) {
+            return false;
+        }
+
+        $createdAt = Carbon::parse($record->created_at);
+        $deviceCodeExpiresIn = intval(option('ygg_device_code_expires_in', 600));
+        if ($createdAt->addSeconds($deviceCodeExpiresIn)->isPast()) {
+            return false;
+        }
+
+        $payload['denied'] = true;
         DB::table('yggc_device_codes')->where('id', $record->id)->update([
             'payload' => json_encode($payload),
             'updated_at' => Carbon::now(),

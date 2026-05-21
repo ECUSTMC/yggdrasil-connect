@@ -12,10 +12,10 @@ class HandleCors
         $corsPaths = [
             'yggc/userinfo',
             '.well-known/openid-configuration',
-            'jwks',
-            'token',
-            'revoke',
-            'device/auth',
+            'yggc/jwks',
+            'yggc/token',
+            'yggc/revoke',
+            'yggc/device/auth',
         ];
 
         $shouldCors = false;
