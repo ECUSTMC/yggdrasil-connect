@@ -117,3 +117,4 @@ yggc:
   shared_client_id:
     title: 共享客户端 ID
     description: 用于设备授权流程的共享 OAuth 客户端 ID。启动器会从 OIDC Discovery 文档中读取此 ID 并自动使用。
+    hint: 留空时将自动使用 PASSPORT_PERSONAL_ACCESS_CLIENT_ID 环境变量的值。

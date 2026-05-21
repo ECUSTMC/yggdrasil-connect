@@ -125,7 +125,7 @@ class OIDCService
             'token_endpoint_auth_signing_alg_values_supported' => ['RS256'],
         ];
 
-        $sharedClientId = option('ygg_shared_client_id');
+        $sharedClientId = option('ygg_shared_client_id') ?: env('PASSPORT_PERSONAL_ACCESS_CLIENT_ID');
         if (!empty($sharedClientId)) {
             $config['shared_client_id'] = $sharedClientId;
         }

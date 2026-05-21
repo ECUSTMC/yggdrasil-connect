@@ -107,7 +107,8 @@ class ConfigController extends Controller
             $form->text('ygg_grant_expires_in', trans('LittleSkin\\YggdrasilConnect::config.yggc.grant_expires_in.title'))
                 ->description(trans('LittleSkin\\YggdrasilConnect::config.yggc.grant_expires_in.description'));
             $form->text('ygg_shared_client_id', trans('LittleSkin\\YggdrasilConnect::config.yggc.shared_client_id.title'))
-                ->description(trans('LittleSkin\\YggdrasilConnect::config.yggc.shared_client_id.description'));
+                ->description(trans('LittleSkin\\YggdrasilConnect::config.yggc.shared_client_id.description'))
+                ->hint(trans('LittleSkin\\YggdrasilConnect::config.yggc.shared_client_id.hint'));
             $form->checkbox('ygg_disable_authserver', trans('LittleSkin\\YggdrasilConnect::config.yggc.disable_authserver.title'))
                 ->hint(trans('LittleSkin\\YggdrasilConnect::config.yggc.disable_authserver.hint'))
                 ->label(trans('LittleSkin\\YggdrasilConnect::config.yggc.disable_authserver.label'))
