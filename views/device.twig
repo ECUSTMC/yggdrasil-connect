@@ -1,0 +1,25 @@
+{% extends 'auth.base' %}
+
+{% block title %}{{ trans('LittleSkin\\YggdrasilConnect::front-end.device.title') }}{% endblock %}
+
+{% block content %}
+<p class="login-box-msg">{{ trans('LittleSkin\\YggdrasilConnect::front-end.device.description') }}</p>
+<main>
+    {% if success %}
+    <div class="alert alert-success">{{ trans('LittleSkin\\YggdrasilConnect::front-end.device.success') }}</div>
+    {% else %}
+    <form id="device-form" method="post" action="{{ url('/device') }}">
+        {{ csrf_field() }}
+        <div class="form-group">
+            <label for="user_code">{{ trans('LittleSkin\\YggdrasilConnect::front-end.device.user-code') }}</label>
+            <input type="text" class="form-control" name="user_code" id="user_code" placeholder="XXXX-XXXX" value="{{ user_code|default('') }}" required autofocus pattern="[A-Za-z0-9]{4}-[A-Za-z0-9]{4}">
+        </div>
+        {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+        {% endif %}
+        <div class="alert alert-warning">{{ trans('LittleSkin\\YggdrasilConnect::front-end.device.warning') }}</div>
+        <button class="btn btn-primary btn-block" type="submit">{{ trans('LittleSkin\\YggdrasilConnect::front-end.device.confirm') }}</button>
+    </form>
+    {% endif %}
+</main>
+{% endblock %}

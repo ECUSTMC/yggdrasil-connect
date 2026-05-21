@@ -5,3 +5,12 @@ select-profile:
   no-available-profiles: 你没有可用的角色，无法授权。请先前往角色管理页面创建角色。
   select-profile: 选择角色
   select-profile-dropdown-hidden: 点击选择角色…
+
+device:
+  title: 设备授权
+  description: 输入授权码以授予应用权限
+  user-code: 授权码
+  confirm: 继续
+  success: 授权成功！你现在可以返回应用了。
+  warning: 请勿输入来自你不信任的来源的授权码，注意帐号和个人信息安全。
+  invalid-code: 授权码无效或已过期，请重新输入。

@@ -101,7 +101,7 @@ union:
 yggc:
   server_url:
     title: OpenID 提供者标识符
-    description: 你的 Janus 实例的根地址，必须以 <code>https://</code> 开头且不以 <code>/</code> 结尾。请确保用户可以正常访问该 URL。
+    description: 你的 OIDC 提供者的根地址，必须以 <code>https://</code> 开头且不以 <code>/</code> 结尾。请确保用户可以正常访问该 URL。
   disable_authserver:
     title: 禁用 Auth Server
     hint: 即 /authserver 下的 API
@@ -111,3 +111,9 @@ yggc:
       如不禁用，请确保你创建了个人访问客户端，并在 <code>.env</code> 文件中设置了 <code>PASSPORT_PERSONAL_ACCESS_CLIENT_ID</code>，否则插件无法正常工作。
     empty-client-id: 你启用了 Auth Server，但没有设置 <code>PASSPORT_PERSONAL_ACCESS_CLIENT_ID</code>。请在 <code>.env</code> 文件中设置该值。要了解如何配置该设置项，请阅读 <a href="/admin/plugins/readme/yggdrasil-connect">插件 README</a>。
     invalid-client-id: <code>PASSPORT_PERSONAL_ACCESS_CLIENT_ID</code> 对应的应用不是个人访问客户端，请创建个人访问客户端，并将 <code>PASSPORT_PERSONAL_ACCESS_CLIENT_ID</code> 的值设为该客户端的 ID。
+  device_code_expires_in:
+    title: 设备码过期时间
+    description: 设备授权流程中设备码的有效时间，单位为秒。
+  grant_expires_in:
+    title: 授权过期时间
+    description: 用户授权的有效时间，过期后需要重新授权，单位为秒。

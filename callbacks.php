@@ -88,10 +88,74 @@ return [
             });
         }
 
+        if (!Schema::hasTable('yggc_authorization_codes')) {
+            Schema::create('yggc_authorization_codes', function (Blueprint $table) {
+                $table->string('id', 255)->primary();
+                $table->json('payload');
+                $table->string('uid', 255)->nullable()->unique();
+                $table->boolean('consumed')->default(false);
+                $table->timestamp('created_at')->useCurrent();
+                $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
+            });
+        }
+
+        if (!Schema::hasTable('yggc_device_codes')) {
+            Schema::create('yggc_device_codes', function (Blueprint $table) {
+                $table->string('id', 255)->primary();
+                $table->json('payload');
+                $table->string('userCode', 191)->nullable();
+                $table->string('uid', 255)->nullable()->unique();
+                $table->boolean('consumed')->default(false);
+                $table->timestamp('created_at')->useCurrent();
+                $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
+            });
+        }
+
+        if (!Schema::hasTable('yggc_refresh_tokens')) {
+            Schema::create('yggc_refresh_tokens', function (Blueprint $table) {
+                $table->string('id', 255)->primary();
+                $table->json('payload');
+                $table->string('uid', 255)->nullable()->unique();
+                $table->boolean('consumed')->default(false);
+                $table->timestamp('created_at')->useCurrent();
+                $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
+            });
+        }
+
+        if (!Schema::hasTable('yggc_grants')) {
+            Schema::create('yggc_grants', function (Blueprint $table) {
+                $table->string('id', 255)->primary();
+                $table->json('payload');
+                $table->string('uid', 255)->nullable()->unique();
+                $table->timestamp('created_at')->useCurrent();
+                $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
+            });
+        }
+
+        if (!Schema::hasTable('yggc_interactions')) {
+            Schema::create('yggc_interactions', function (Blueprint $table) {
+                $table->string('id', 255)->primary();
+                $table->json('payload');
+                $table->string('uid', 255)->nullable()->unique();
+                $table->timestamp('created_at')->useCurrent();
+                $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
+            });
+        }
+
+        if (!Schema::hasTable('yggc_sessions')) {
+            Schema::create('yggc_sessions', function (Blueprint $table) {
+                $table->string('id', 255)->primary();
+                $table->json('payload');
+                $table->string('uid', 255)->nullable()->unique();
+                $table->timestamp('created_at')->useCurrent();
+                $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
+            });
+        }
+
         $items = [
             'ygg_uuid_algorithm' => 'v3',
-            'ygg_token_expire_1' => '259200', // 3 days
-            'ygg_token_expire_2' => '604800', // 7 days
+            'ygg_token_expire_1' => '259200',
+            'ygg_token_expire_2' => '604800',
             'ygg_tokens_limit' => '10',
             'ygg_rate_limit' => '1000',
             'ygg_skin_domain' => '',
@@ -102,6 +166,8 @@ return [
             'ygg_enable_ali' => 'true',
             'ygg_disable_authserver' => 'false',
             'ygg_connect_server_url' => '',
+            'ygg_device_code_expires_in' => '600',
+            'ygg_grant_expires_in' => '86400',
             'union_api_root' => 'https://skin.mualliance.ltd/api/union',       // MODIFICATION: UNION
             'union_server_list' => '{}',
             'union_member_key' => '',
