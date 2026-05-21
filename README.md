@@ -1,8 +1,8 @@
 # Yggdrasil Connect for Blessing Skin
 
-本插件实现了 [Yggdrasil 服务端技术规范](https://github.com/yushijinhun/authlib-injector/wiki/Yggdrasil%20%E6%9C%8D%E5%8A%A1%E7%AB%AF%E6%8A%80%E6%9C%AF%E8%A7%84%E8%8C%83)，可与 [authlib-injector](https://github.com/yushijinhun/authlib-injector) 及支持的启动器配合实现 Minecraft 外置登录身份验证，并可与 [Janus](https://github.com/bs-community/janus) 项目配合实现基于 [Yggdrasil Connect 协议](https://github.com/yushijinhun/authlib-injector/issues/268) 的 OAuth 身份验证。要了解更多关于 Yggdrasil Connect 和 Janus 的信息，请阅读下面的 [关于 Yggdrasil Connect](#关于-yggdrasil-connect) 部分。
+本插件实现了 [Yggdrasil 服务端技术规范](https://github.com/yushijinhun/authlib-injector/wiki/Yggdrasil%20%E6%9C%8D%E5%8A%A1%E7%AB%AF%E6%8A%80%E6%9C%AF%E8%A7%84%E8%8C%83)，可与 [authlib-injector](https://github.com/yushijinhun/authlib-injector) 及支持的启动器配合实现 Minecraft 外置登录身份验证，并内置了基于 [Yggdrasil Connect 协议](https://github.com/yushijinhun/authlib-injector/issues/268) 的 OpenID Connect 服务端，无需额外部署独立服务即可实现 OAuth 身份验证。要了解更多关于 Yggdrasil Connect 的信息，请阅读下面的 [关于 Yggdrasil Connect](#关于-yggdrasil-connect) 部分。
 
-本插件由原版 Yggdrasil API 插件重构而来，使用 Laravel Passport 的个人访问令牌（Personal Access Token）作为访问令牌，通过在 JWT Payload 中添加角色 UUID 并重新签名实现访问令牌与角色的绑定。首次启用本插件时，请务必按照下方的 [插件使用方法](#插件使用方法) 部分中的说明执行操作，否则本插件可能无法正常工作。
+本插件由原版 Yggdrasil API 插件重构而来，并整合了原 [Janus](https://github.com/bs-community/janus) 项目的 OpenID Connect 功能。本插件使用 Laravel Passport 的个人访问令牌（Personal Access Token）作为访问令牌，通过在 JWT Payload 中添加角色 UUID 并重新签名实现访问令牌与角色的绑定。首次启用本插件时，请务必按照下方的 [插件使用方法](#插件使用方法) 部分中的说明执行操作，否则本插件可能无法正常工作。
 
 本插件不需要也不能与原版 Yggdrasil API 插件同时启用，但插件数据可与原版 Yggdrasil Connect 插件通用。如需从原版 Yggdrasil API 插件迁移至本插件，请务必按照下方的 [插件使用方法](#插件使用方法) 部分的第三步处理 `uuid` 表，否则本插件无法正常工作。
 
@@ -18,9 +18,12 @@
     - **该指令会直接删除 `uuid` 表中的部分记录，因此在执行该指令前，请务必备份原先的 `uuid` 表！！！**
         - 要了解该指令对你的 `uuid` 表都做了什么，请阅读下面的 [关于 Bug 修复](#关于-bug-修复) 部分。
     - 如果你没有安装过原版 Yggdrasil API 而直接安装了本插件，则无需执行这条命令。
-5. 如需启用 Yggdrasil Connect，请在部署好 Janus 后，在本插件的配置页面填写你的 Janus 实例的 OpenID 提供者标识符。
-    - 要了解 Yggdrasil Connect 和 Janus 是什么，请阅读下面的 [关于 Yggdrasil Connect](#关于-yggdrasil-connect) 部分。
-    - 要了解如何部署 Janus，请查看 [Janus 项目的代码仓库](https://github.com/bs-community/janus)。
+5. 如需启用 Yggdrasil Connect（OpenID Connect 服务端），请确保站点的 `site_url` 已正确配置为 HTTPS 地址。Yggdrasil Connect 功能在 `site_url` 配置完成后自动启用，无需额外部署。
+    - Yggdrasil Connect 的 OpenID Discovery 端点位于 `/.well-known/openid-configuration`。
+    - 所有 Yggdrasil Connect 的 API 端点均位于 `/yggc/` 路径下，具体端点信息可通过 Discovery 端点获取。
+    - 可在插件配置页面的「Yggdrasil Connect」选项卡中配置设备码过期时间、授权过期时间、共享客户端 ID 等参数。
+    - 如需禁用传统 Auth Server（即通过用户名密码登录的方式），可在配置页面中勾选「禁用 Auth Server」。
+6. 如果你之前独立部署了 [Janus](https://github.com/bs-community/janus) 项目，可以将其停用。本插件已内置 Janus 的全部功能，无需再独立运行。
 
 ## 已知问题
 
@@ -42,11 +45,31 @@ Yggdrasil Connect 的出现正是为了解决这些问题。通过 OAuth 2.0 和
 
 ### 为 Blessing Skin Server 启用 Yggdrasil Connect
 
-要为 Blessing Skin Server 启用 Yggdrasil Connect，则必须部署 Janus。
+本插件内置了完整的 Yggdrasil Connect（OpenID Connect）服务端，无需额外部署独立服务。
 
-Janus 是一个独立于 Blessing Skin Server 运行、但与 Blessing Skin Server 使用同一个数据库的 Yggdrasil Connect 服务端。由于 Laravel 框架缺乏合适的 OpenID Connect 服务端扩展包，故采取这种外挂 OpenID Connect 服务端的方式实现 Yggdrasil Connect。
+要启用 Yggdrasil Connect，只需确保 Blessing Skin Server 的 `site_url` 配置项已正确设置为 HTTPS 地址即可。Yggdrasil Connect 功能在 `site_url` 配置完成后自动启用。
 
-要了解如何部署 Janus，请查看 [Janus 项目的代码仓库](https://github.com/bs-community/janus)。
+启用后，以下端点将可用：
+
+| 端点 | 路径 | 说明 |
+|---|---|---|
+| OpenID Discovery | `/.well-known/openid-configuration` | OpenID Connect 服务发现（必须在根路径，遵循 OIDC 规范） |
+| JWKS | `/yggc/jwks` | JWT 签名公钥 |
+| 授权端点 | `/yggc/auth` | OAuth 2.0 授权端点 |
+| 令牌端点 | `/yggc/token` | OAuth 2.0 令牌端点 |
+| 用户信息端点 | `/yggc/userinfo` | OpenID Connect 用户信息端点 |
+| 吊销端点 | `/yggc/revoke` | OAuth 2.0 令牌吊销端点 |
+| 设备授权端点 | `/yggc/device/auth` | OAuth 2.0 设备授权端点 |
+| 设备验证页面 | `/yggc/device` | 设备码验证页面 |
+
+可在插件配置页面的「Yggdrasil Connect」选项卡中配置以下参数：
+
+- **设备码过期时间**：设备授权流程中设备码的有效时间
+- **授权过期时间**：用户授权的有效时间，过期后需要重新授权
+- **共享客户端 ID**：用于设备授权流程的共享 OAuth 客户端 ID，启动器会从 OIDC Discovery 文档中读取此 ID 并自动使用
+- **禁用 Auth Server**：禁用后，用户将无法通过在启动器中输入用户名和密码的传统方式登录，必须通过 Yggdrasil Connect 登录
+
+> **注意**：如果你之前使用了独立部署的 [Janus](https://github.com/bs-community/janus) 项目，本插件已内置其全部功能，可以将其停用。
 
 ## 关于 Bug 修复
 
