@@ -165,7 +165,6 @@ return [
             'ygg_show_activities_section' => 'true',
             'ygg_enable_ali' => 'true',
             'ygg_disable_authserver' => 'false',
-            'ygg_connect_server_url' => '',
             'ygg_device_code_expires_in' => '600',
             'ygg_grant_expires_in' => '86400',
             'ygg_shared_client_id' => '',

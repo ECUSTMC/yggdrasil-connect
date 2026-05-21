@@ -33,12 +33,7 @@ class OIDCService
 
     public function getIssuer(): string
     {
-        $issuer = option('ygg_connect_server_url');
-        if (empty($issuer)) {
-            $issuer = option('site_url');
-        }
-
-        return rtrim($issuer, '/');
+        return rtrim(option('site_url'), '/');
     }
 
     public function getDiscoveryConfig(): array

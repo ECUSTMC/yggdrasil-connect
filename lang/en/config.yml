@@ -61,9 +61,6 @@ union:
     bs_root: User Center URL
 
 yggc:
-  server_url:
-    title: OpenID Issuer Identifier
-    description: The root URL of your OIDC Provider. Must start with <code>https://</code> and end without <code>/</code>. Make sure it is accessible for the public.
   disable_authserver:
     title: Disable Auth Server
     hint: APIs under /authserver

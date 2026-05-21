@@ -20,10 +20,10 @@ class CreatePersonalAccessClient extends Command
             }
         }
 
-        $issuer = option('yggc_server_url');
-        if (empty($issuer)) {
-            $this->warn('You haven\'t set your Janus Root. The client won\'t be able to use with Janus.');
-            $this->line('<info>You can still fix it later by setting up redirect_uri to </info><comment>{YOUR_JANUS_ROOT}/callback</comment><info> in client owner\'s [OAuth2 Apps] page</info>. (Owner UID: <comment>'.$this->option('owner').'</comment>)');
+        $siteUrl = option('site_url');
+        if (empty($siteUrl)) {
+            $this->warn('You haven\'t set your Site URL. The client won\'t be able to use with OIDC.');
+            $this->line('<info>You can still fix it later by setting up redirect_uri to </info><comment>{YOUR_SITE_URL}/yggc/client/public</comment><info> in client owner\'s [OAuth2 Apps] page</info>. (Owner UID: <comment>'.$this->option('owner').'</comment>)');
             if (!$this->confirm('Continue anyway?')) {
                 $this->info('Cancelled.');
 
@@ -34,7 +34,7 @@ class CreatePersonalAccessClient extends Command
         $client = $clients->createPersonalAccessClient(
             $this->option('owner'),
             $this->option('name'),
-            $issuer ? $issuer.'/callback' : ''
+            $siteUrl ? $siteUrl.'/yggc/client/public' : ''
         );
 
         $this->info('Personal Access Client has been created successfully.');
