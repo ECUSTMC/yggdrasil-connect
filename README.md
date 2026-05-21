@@ -66,7 +66,7 @@ Yggdrasil Connect 的出现正是为了解决这些问题。通过 OAuth 2.0 和
 
 - **设备码过期时间**：设备授权流程中设备码的有效时间
 - **授权过期时间**：用户授权的有效时间，过期后需要重新授权
-- **共享客户端 ID**：用于设备授权流程的共享 OAuth 客户端 ID，启动器会从 OIDC Discovery 文档中读取此 ID 并自动使用
+- **共享客户端 ID**：用于设备授权流程的共享 OAuth 客户端 ID，启动器会从 OIDC Discovery 文档中读取此 ID 并自动使用。留空时自动使用 `PASSPORT_PERSONAL_ACCESS_CLIENT_ID` 环境变量的值，通常无需手动填写
 - **禁用 Auth Server**：禁用后，用户将无法通过在启动器中输入用户名和密码的传统方式登录，必须通过 Yggdrasil Connect 登录
 
 > **注意**：如果你之前使用了独立部署的 [Janus](https://github.com/bs-community/janus) 项目，本插件已内置其全部功能，可以将其停用。
