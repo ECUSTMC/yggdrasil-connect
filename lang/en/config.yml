@@ -79,3 +79,6 @@ yggc:
   grant_expires_in:
     title: Grant Expiry Time
     description: The validity period of user authorization. After expiration, re-authorization is required, in seconds.
+  shared_client_id:
+    title: Shared Client ID
+    description: The shared OAuth client ID used for the device authorization flow. Launchers will read this ID from the OIDC Discovery document and use it automatically.

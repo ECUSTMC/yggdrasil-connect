@@ -168,6 +168,7 @@ return [
             'ygg_connect_server_url' => '',
             'ygg_device_code_expires_in' => '600',
             'ygg_grant_expires_in' => '86400',
+            'ygg_shared_client_id' => '',
             'union_api_root' => 'https://skin.mualliance.ltd/api/union',       // MODIFICATION: UNION
             'union_server_list' => '{}',
             'union_member_key' => '',
