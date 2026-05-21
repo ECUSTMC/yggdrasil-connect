@@ -583,9 +583,6 @@ class OIDCService
             ->withClaim('scope', implode(' ', $scopes))
             ->withClaim('scopes', $scopes)
             ->withClaim('client_id', $clientId)
-            ->withClaim('sub', (string) $user->uid)
-            ->withClaim('aud', $clientId)
-            ->withClaim('iss', $issuer)
             ->withClaim('grant_id', $grantId);
 
         if ($selectedProfile) {
