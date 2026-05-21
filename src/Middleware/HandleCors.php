@@ -9,14 +9,31 @@ class HandleCors
 {
     public function handle(Request $request, \Closure $next)
     {
-        if (!$request->is('yggc/userinfo')) {
+        $corsPaths = [
+            'yggc/userinfo',
+            '.well-known/openid-configuration',
+            'jwks',
+            'token',
+            'revoke',
+            'device/auth',
+        ];
+
+        $shouldCors = false;
+        foreach ($corsPaths as $path) {
+            if ($request->is($path)) {
+                $shouldCors = true;
+                break;
+            }
+        }
+
+        if (!$shouldCors) {
             return $next($request);
         }
 
         if ($this->isPreflightRequest($request)) {
             return response(null)->setStatusCode(Response::HTTP_NO_CONTENT)
                 ->header('Access-Control-Allow-Origin', '*')
-                ->header('Access-Control-Allow-Methods', 'GET, HEAD')
+                ->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
                 ->header('Access-Control-Allow-Headers', '*');
         }
 

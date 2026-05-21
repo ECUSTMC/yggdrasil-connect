@@ -5,3 +5,12 @@ select-profile:
   no-available-profiles: You have no available players to authorize. Please add a player first in the Player Management page.
   select-profile: Select Player
   select-profile-dropdown-hidden: Select a player...
+
+device:
+  title: Device Authorization
+  description: Enter the authorization code to grant application access
+  user-code: Authorization Code
+  confirm: Continue
+  success: Authorization successful! You can now return to the application.
+  warning: Do not enter authorization codes from sources you do not trust. Be careful with your account and personal information.
+  invalid-code: The authorization code is invalid or expired. Please try again.

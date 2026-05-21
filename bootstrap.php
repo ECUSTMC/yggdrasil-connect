@@ -147,9 +147,24 @@ return function (Dispatcher $events, Filter $filter, Request $request) {
                         Route::post('callback', 'OIDCController@selectProfile');
                         Route::get('cancel', 'OIDCController@cancel');
                     });
-                    // Route::get('device', 'OIDCController@userCode');
                     Route::middleware(['api', 'LittleSkin\YggdrasilConnect\Middleware\CheckBearerTokenOAuth:'.Scope::OPENID])
                         ->get('userinfo', 'OIDCController@getUserInfo');
+                });
+
+                Route::middleware(['LittleSkin\YggdrasilConnect\Middleware\CheckIsIssuerSet'])->group(function () {
+                    Route::get('.well-known/openid-configuration', 'OIDCController@discovery');
+                    Route::get('jwks', 'OIDCController@jwks');
+                    Route::get('auth', 'OIDCController@authorization');
+                    Route::post('token', 'OIDCController@token');
+                    Route::post('revoke', 'OIDCController@revocation');
+                    Route::post('device/auth', 'OIDCController@deviceAuthorization');
+
+                    Route::middleware(['web', 'auth'])->group(function () {
+                        Route::get('device', 'OIDCController@deviceVerify');
+                        Route::post('device', 'OIDCController@deviceVerify');
+                        Route::get('interaction/{uid}', 'OIDCController@interaction');
+                        Route::get('interaction/{uid}/callback', 'OIDCController@interactionCallback');
+                    });
                 });
                 
                 // MODIFICATION: UNION

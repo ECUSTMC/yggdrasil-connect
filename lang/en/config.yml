@@ -63,7 +63,7 @@ union:
 yggc:
   server_url:
     title: OpenID Issuer Identifier
-    description: The root URL of your Janus instance. Must start with <code>https://</code> and end without <code>/</code>. Make sure it is accessible for the public.
+    description: The root URL of your OIDC Provider. Must start with <code>https://</code> and end without <code>/</code>. Make sure it is accessible for the public.
   disable_authserver:
     title: Disable Auth Server
     hint: APIs under /authserver
@@ -73,3 +73,9 @@ yggc:
       Make sure you've created a Personal Access Client and set <code>PASSPORT_PERSONAL_ACCESS_CLIENT_ID</code> in <code>.env</code> file if you decide to keep it enabled, otherwise the Auth Server may not work functionally.
     empty-client-id: You have the Auth Server enabled, but <code>PASSPORT_PERSONAL_ACCESS_CLIENT_ID</code> is not set. Please set it in <code>.env</code> file. Read the <a href="/admin/plugins/readme/yggdrasil-connect">README</a> to learn how to configure it.
     invalid-client-id: The client set in <code>PASSPORT_PERSONAL_ACCESS_CLIENT_ID</code> is not a Personal Access Client. Please create one and set the value to the ID of that client.
+  device_code_expires_in:
+    title: Device Code Expiry Time
+    description: The validity period of device codes in the device authorization flow, in seconds.
+  grant_expires_in:
+    title: Grant Expiry Time
+    description: The validity period of user authorization. After expiration, re-authorization is required, in seconds.
