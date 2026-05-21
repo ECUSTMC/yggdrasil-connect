@@ -7,6 +7,25 @@
 <main>
     {% if success %}
     <div class="alert alert-success">{{ trans('LittleSkin\\YggdrasilConnect::front-end.device.success') }}</div>
+    {% elseif select_profile %}
+    <form id="device-profile-form" method="post" action="{{ url('/device') }}">
+        {{ csrf_field() }}
+        <input type="hidden" name="user_code" value="{{ user_code }}">
+        <div class="form-group">
+            <label for="profile-dropdown">{{ trans('LittleSkin\\YggdrasilConnect::front-end.select-profile.select-profile') }}</label>
+            <select required class="form-control" name="profile_uuid" id="profile-dropdown">
+                <option hidden value>{{ trans('LittleSkin\\YggdrasilConnect::front-end.select-profile.select-profile-dropdown-hidden') }}</option>
+                {% for profile in availableProfiles %}
+                    <option value="{{ profile.id }}">{{ profile.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% if error %}
+        <div class="alert alert-danger">{{ error }}</div>
+        {% endif %}
+        <div class="alert alert-warning">{{ trans('LittleSkin\\YggdrasilConnect::front-end.device.warning') }}</div>
+        <button class="btn btn-primary btn-block" type="submit">{{ trans('LittleSkin\\YggdrasilConnect::front-end.device.confirm') }}</button>
+    </form>
     {% else %}
     <form id="device-form" method="post" action="{{ url('/device') }}">
         {{ csrf_field() }}
