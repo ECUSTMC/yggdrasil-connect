@@ -21,6 +21,7 @@ class OIDCService
     public const ACCESS_TOKEN_NAME = 'Yggdrasil Connect';
 
     private JWT\Configuration $jwtConfig;
+    private ?string $kid = null;
 
     public function __construct()
     {
@@ -29,6 +30,30 @@ class OIDCService
             InMemory::file(storage_path('oauth-private.key')),
             InMemory::file(storage_path('oauth-public.key'))
         );
+    }
+
+    private function getKid(): string
+    {
+        if ($this->kid !== null) {
+            return $this->kid;
+        }
+
+        $publicKey = @file_get_contents(storage_path('oauth-public.key'));
+        if ($publicKey === false) {
+            throw new \RuntimeException('Failed to read public key file');
+        }
+        $key = openssl_pkey_get_public($publicKey);
+        if ($key === false) {
+            throw new \RuntimeException('Invalid public key');
+        }
+        $details = openssl_pkey_get_details($key);
+
+        $n = rtrim(strtr(base64_encode($details['rsa']['n']), '+/', '-_'), '=');
+        $e = rtrim(strtr(base64_encode($details['rsa']['e']), '+/', '-_'), '=');
+
+        $this->kid = $this->computeJWKThumbprint($n, $e);
+
+        return $this->kid;
     }
 
     public function getIssuer(): string
@@ -44,9 +69,8 @@ class OIDCService
             'issuer' => $issuer,
             'authorization_endpoint' => "$issuer/auth",
             'token_endpoint' => "$issuer/token",
-            'userinfo_endpoint' => "$issuer/userinfo",
+            'userinfo_endpoint' => "$issuer/yggc/userinfo",
             'jwks_uri' => "$issuer/jwks",
-            'registration_endpoint' => null,
             'scopes_supported' => [
                 'openid',
                 'profile',
@@ -86,7 +110,6 @@ class OIDCService
             'require_request_uri_registration' => false,
             'revocation_endpoint' => "$issuer/revoke",
             'revocation_endpoint_auth_methods_supported' => ['client_secret_post', 'none'],
-            'end_session_endpoint' => null,
             'device_authorization_endpoint' => "$issuer/device/auth",
             'code_challenge_methods_supported' => ['S256'],
             'token_endpoint_auth_signing_alg_values_supported' => ['RS256'],
@@ -138,10 +161,10 @@ class OIDCService
 
     public function validateAuthorizationRequest(array $params): array
     {
-        $required = ['client_id', 'response_type', 'redirect_uri'];
+        $required = ['client_id', 'response_type', 'redirect_uri', 'scope'];
         foreach ($required as $field) {
             if (empty($params[$field])) {
-                throw new OIDCException('invalid_request', "Missing required parameter: $field");
+                throw new OIDCException('invalid_request', "Missing required parameter: $field", isset($params['state']) ? $params['state'] : null);
             }
         }
 
@@ -163,9 +186,9 @@ class OIDCService
             }
         }
 
-        $scopes = isset($params['scope']) ? explode(' ', $params['scope']) : ['openid'];
-        if (!in_array('openid', $scopes)) {
-            $scopes[] = 'openid';
+        $scopes = explode(' ', $params['scope']);
+        if (!in_array(Scope::OPENID, $scopes)) {
+            throw new OIDCException('invalid_scope', 'The openid scope is required', $params['state'] ?? null);
         }
 
         $validScopes = Scope::getAllScopes();
@@ -399,7 +422,11 @@ class OIDCService
             throw new OIDCException('invalid_client', 'Client authentication failed');
         }
 
-        if (!empty($params['redirect_uri']) && $params['redirect_uri'] !== $codeData['redirectUri']) {
+        if (empty($params['redirect_uri'])) {
+            throw new OIDCException('invalid_request', 'Missing redirect_uri parameter');
+        }
+
+        if ($params['redirect_uri'] !== $codeData['redirectUri']) {
             throw new OIDCException('invalid_grant', 'Redirect URI mismatch');
         }
 
@@ -500,10 +527,6 @@ class OIDCService
             throw new OIDCException('invalid_client', 'Client mismatch');
         }
 
-        if (empty($dcPayload['accountId'])) {
-            throw new OIDCException('authorization_pending', 'The user has not yet completed the device flow');
-        }
-
         if ($dcRecord->consumed) {
             throw new OIDCException('expired_token', 'Device code already used');
         }
@@ -512,6 +535,24 @@ class OIDCService
         $deviceCodeExpiresIn = intval(option('ygg_device_code_expires_in', 600));
         if ($createdAt->addSeconds($deviceCodeExpiresIn)->isPast()) {
             throw new OIDCException('expired_token', 'Device code expired');
+        }
+
+        if (empty($dcPayload['accountId'])) {
+            $interval = intval($dcPayload['interval'] ?? 5);
+            $lastPollAt = isset($dcPayload['lastPollAt']) ? Carbon::parse($dcPayload['lastPollAt']) : null;
+            $now = Carbon::now();
+
+            if ($lastPollAt && $lastPollAt->addSeconds($interval)->isFuture()) {
+                throw new OIDCException('slow_down', 'Polling too fast, increase the interval');
+            }
+
+            $dcPayload['lastPollAt'] = $now->toIso8601String();
+            DB::table('yggc_device_codes')->where('id', $params['device_code'])->update([
+                'payload' => json_encode($dcPayload),
+                'updated_at' => $now,
+            ]);
+
+            throw new OIDCException('authorization_pending', 'The user has not yet completed the device flow');
         }
 
         DB::table('yggc_device_codes')->where('id', $params['device_code'])->update([
@@ -534,22 +575,29 @@ class OIDCService
     {
         $expiresIn1 = intval(option('ygg_token_expire_1', 259200));
         $expiresIn2 = intval(option('ygg_token_expire_2', 604800));
+        $includeRefreshToken = in_array(Scope::OFFLINE_ACCESS, $scopes);
+        $includeIdToken = in_array(Scope::OPENID, $scopes);
 
         $accessToken = $this->issueAccessToken($user, $clientId, $scopes, $grantId, $expiresIn1);
-        $refreshToken = $this->issueRefreshToken($user, $clientId, $scopes, $grantId, $expiresIn2);
-        $idToken = $this->issueIdToken($user, $clientId, $scopes, $nonce, $grantId);
 
         $this->syncAccessTokenToPassport($accessToken, $user, $clientId, $scopes, $expiresIn1);
-        $this->syncRefreshTokenToPassport($refreshToken, $accessToken['jti']);
 
         $result = [
             'access_token' => $accessToken['jwt'],
             'token_type' => 'Bearer',
             'expires_in' => $expiresIn1,
-            'refresh_token' => $refreshToken['jwt'],
             'scope' => implode(' ', $scopes),
-            'id_token' => $idToken,
         ];
+
+        if ($includeRefreshToken) {
+            $refreshToken = $this->issueRefreshToken($user, $clientId, $scopes, $grantId, $expiresIn2);
+            $this->syncRefreshTokenToPassport($refreshToken, $accessToken['jti']);
+            $result['refresh_token'] = $refreshToken['jwt'];
+        }
+
+        if ($includeIdToken) {
+            $result['id_token'] = $this->issueIdToken($user, $clientId, $scopes, $nonce, $grantId);
+        }
 
         return $result;
     }
@@ -569,6 +617,7 @@ class OIDCService
         }
 
         $builder = $this->jwtConfig->builder()
+            ->withHeader('kid', $this->getKid())
             ->identifiedBy($jti)
             ->issuedAt($now->toDateTimeImmutable())
             ->expiresAt($now->addSeconds($expiresIn)->toDateTimeImmutable())
@@ -622,6 +671,7 @@ class OIDCService
         ]);
 
         $builder = $this->jwtConfig->builder()
+            ->withHeader('kid', $this->getKid())
             ->identifiedBy($jti)
             ->issuedAt($now->toDateTimeImmutable())
             ->expiresAt($now->addSeconds($expiresIn)->toDateTimeImmutable())
@@ -681,6 +731,7 @@ class OIDCService
         }
 
         $builder = $this->jwtConfig->builder()
+            ->withHeader('kid', $this->getKid())
             ->identifiedBy(bin2hex(random_bytes(16)))
             ->issuedAt($now->toDateTimeImmutable())
             ->expiresAt($now->addSeconds(intval(option('ygg_token_expire_1', 259200)))->toDateTimeImmutable())
@@ -822,12 +873,17 @@ class OIDCService
         $deviceCode = bin2hex(random_bytes(32));
         $userCode = strtoupper(substr(bin2hex(random_bytes(4)), 0, 4).'-'.substr(bin2hex(random_bytes(4)), 0, 4));
 
+        $interval = 5;
+        $expiresIn = intval(option('ygg_device_code_expires_in', 600));
+
         $payload = [
             'clientId' => $clientId,
             'scopes' => $scopes,
             'accountId' => null,
             'grantId' => null,
             'consumed' => false,
+            'interval' => $interval,
+            'lastPollAt' => null,
             'created_at' => Carbon::now()->toIso8601String(),
         ];
 
@@ -841,15 +897,13 @@ class OIDCService
             'updated_at' => Carbon::now(),
         ]);
 
-        $expiresIn = intval(option('ygg_device_code_expires_in', 600));
-
         return [
             'device_code' => $deviceCode,
             'user_code' => $userCode,
             'verification_uri' => $this->getIssuer().'/device',
             'verification_uri_complete' => $this->getIssuer().'/device?user_code='.$userCode,
             'expires_in' => $expiresIn,
-            'interval' => 5,
+            'interval' => $interval,
         ];
     }
 

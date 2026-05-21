@@ -168,6 +168,7 @@ class OIDCController extends Controller
             $statusCode = match ($e->error) {
                 'invalid_client' => Response::HTTP_UNAUTHORIZED,
                 'authorization_pending' => Response::HTTP_BAD_REQUEST,
+                'slow_down' => Response::HTTP_BAD_REQUEST,
                 'expired_token' => Response::HTTP_BAD_REQUEST,
                 default => Response::HTTP_BAD_REQUEST,
             };
@@ -191,13 +192,17 @@ class OIDCController extends Controller
             return response()->json([
                 'error' => 'invalid_token',
                 'error_description' => 'No bearer token provided',
-            ], Response::HTTP_UNAUTHORIZED);
+            ], Response::HTTP_UNAUTHORIZED)->withHeaders([
+                'WWW-Authenticate' => 'Bearer realm="yggdrasil", error="invalid_token", error_description="No bearer token provided"',
+            ]);
         }
 
         try {
             $userInfo = $this->oidc->getUserInfo($bearerToken);
         } catch (OIDCException $e) {
-            return response()->json($e->toArray(), Response::HTTP_UNAUTHORIZED);
+            return response()->json($e->toArray(), Response::HTTP_UNAUTHORIZED)->withHeaders([
+                'WWW-Authenticate' => 'Bearer realm="yggdrasil", error="'.$e->error.'", error_description="'.$e->errorDescription.'"',
+            ]);
         }
 
         return response()->json($userInfo);
@@ -223,12 +228,19 @@ class OIDCController extends Controller
     {
         $clientId = $request->input('client_id');
         $clientSecret = $request->input('client_secret');
-        $scope = $request->input('scope', 'openid');
-
-        if (empty($clientId)) {
+        $scope = $request->input('scope');
+        if (empty($scope)) {
             return response()->json([
                 'error' => 'invalid_request',
-                'error_description' => 'Missing client_id',
+                'error_description' => 'Missing required parameter: scope',
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
+        $scopes = explode(' ', $scope);
+        if (!in_array(Scope::OPENID, $scopes)) {
+            return response()->json([
+                'error' => 'invalid_scope',
+                'error_description' => 'The openid scope is required',
             ], Response::HTTP_BAD_REQUEST);
         }
 
@@ -252,11 +264,6 @@ class OIDCController extends Controller
                     'error_description' => 'Client authentication failed',
                 ], Response::HTTP_UNAUTHORIZED);
             }
-        }
-
-        $scopes = explode(' ', $scope);
-        if (!in_array('openid', $scopes)) {
-            $scopes[] = 'openid';
         }
 
         $validScopes = Scope::getAllScopes();

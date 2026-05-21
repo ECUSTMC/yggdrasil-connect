@@ -111,7 +111,7 @@ class AccessToken
 
     private function hasScopesToJoinServer(): bool
     {
-        return $this->can(Scope::PROFILE_READ) || $this->passportToken->can(Scope::PROFILE_SELECT);
+        return $this->can(Scope::SERVER_JOIN);
     }
 
     private function isSelectedProfileValid(): bool
