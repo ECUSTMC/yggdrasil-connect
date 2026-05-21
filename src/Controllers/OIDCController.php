@@ -234,8 +234,13 @@ class OIDCController extends Controller
             ], Response::HTTP_UNAUTHORIZED);
         }
 
-        if (!empty($clientSecret)) {
-            if (!$client->secret || !hash_equals($client->secret, $clientSecret)) {
+        $siteUrl = option('site_url');
+        $publicRedirect = "$siteUrl/yggc/client/public";
+        $redirectUris = array_map('trim', explode(',', $client->redirect));
+        $isPublicClient = in_array($publicRedirect, $redirectUris);
+
+        if (!$isPublicClient) {
+            if (empty($clientSecret) || !$client->secret || !hash_equals($client->secret, $clientSecret)) {
                 return response()->json([
                     'error' => 'invalid_client',
                     'error_description' => 'Client authentication failed',

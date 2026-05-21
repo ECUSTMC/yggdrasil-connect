@@ -117,3 +117,6 @@ yggc:
   grant_expires_in:
     title: 授权过期时间
     description: 用户授权的有效时间，过期后需要重新授权，单位为秒。
+  shared_client_id:
+    title: 共享客户端 ID
+    description: 用于设备授权流程的共享 OAuth 客户端 ID。启动器会从 OIDC Discovery 文档中读取此 ID 并自动使用。

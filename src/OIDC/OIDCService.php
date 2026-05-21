@@ -45,7 +45,7 @@ class OIDCService
     {
         $issuer = $this->getIssuer();
 
-        return [
+        $config = [
             'issuer' => $issuer,
             'authorization_endpoint' => "$issuer/auth",
             'token_endpoint' => "$issuer/token",
@@ -96,6 +96,13 @@ class OIDCService
             'code_challenge_methods_supported' => ['S256'],
             'token_endpoint_auth_signing_alg_values_supported' => ['RS256'],
         ];
+
+        $sharedClientId = option('ygg_shared_client_id');
+        if (!empty($sharedClientId)) {
+            $config['shared_client_id'] = $sharedClientId;
+        }
+
+        return $config;
     }
 
     public function getJWKS(): array
