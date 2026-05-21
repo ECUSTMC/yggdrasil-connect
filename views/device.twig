@@ -8,7 +8,7 @@
     {% if success %}
     <div class="alert alert-success">{{ trans('LittleSkin\\YggdrasilConnect::front-end.device.success') }}</div>
     {% elseif select_profile %}
-    <form id="device-profile-form" method="post" action="{{ url('/device') }}">
+    <form id="device-profile-form" method="post" action="{{ url('/yggc/device') }}">
         {{ csrf_field() }}
         <input type="hidden" name="user_code" value="{{ user_code }}">
         <div class="form-group">
@@ -27,7 +27,7 @@
         <button class="btn btn-primary btn-block" type="submit">{{ trans('LittleSkin\\YggdrasilConnect::front-end.device.confirm') }}</button>
     </form>
     {% else %}
-    <form id="device-form" method="post" action="{{ url('/device') }}">
+    <form id="device-form" method="post" action="{{ url('/yggc/device') }}">
         {{ csrf_field() }}
         <div class="form-group">
             <label for="user_code">{{ trans('LittleSkin\\YggdrasilConnect::front-end.device.user-code') }}</label>
