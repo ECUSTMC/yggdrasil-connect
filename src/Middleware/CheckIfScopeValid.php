@@ -11,11 +11,11 @@ class CheckIfScopeValid
     public function handle(Request $request, \Closure $next)
     {
         $scope = $request->input('scope');
-        $redirectUri = $request->input('redirect_uri');
 
-        // scope is required per YggC spec
+        // Only validate scope when it's provided
+        // YggC-specific "scope is required" validation is in OIDCService::validateAuthorizationRequest
         if (!$scope) {
-            return $this->scopeError($redirectUri, $request->input('state'));
+            return $next($request);
         }
 
         $scopes = explode(' ', $scope);
@@ -31,7 +31,7 @@ class CheckIfScopeValid
         }
 
         if ($error !== null) {
-            return $this->scopeError($redirectUri, $request->input('state'), $error);
+            return $this->scopeError($request->input('redirect_uri'), $request->input('state'), $error);
         }
 
         return $next($request);
