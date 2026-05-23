@@ -34,6 +34,13 @@ return [
             ]);
         }
 
+        if (!Scope::where('name', 'email')->exists()) {
+            Scope::create([
+                'name' => 'email',
+                'description' => 'LittleSkin\\YggdrasilConnect::scopes.email',
+            ]);
+        }
+
         if (!Scope::where('name', 'Yggdrasil.PlayerProfiles.Read')->exists()) {
             Scope::create([
                 'name' => 'Yggdrasil.PlayerProfiles.Read',
