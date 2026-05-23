@@ -62,6 +62,20 @@ class OIDCController extends Controller
         }
 
         if (Auth::check()) {
+            // Reject unverified users
+            if (!Auth::user()->verified) {
+                $separator = in_array('code', $authRequest['response_types']) ? '?' : '#';
+                $errorParams = [
+                    'error' => 'access_denied',
+                    'error_description' => 'User email is not verified',
+                ];
+                if ($authRequest['state'] !== null) {
+                    $errorParams['state'] = $authRequest['state'];
+                }
+
+                return redirect()->away($authRequest['redirect_uri'].$separator.http_build_query($errorParams));
+            }
+
             return $this->handleAuthenticatedUser($authRequest, Auth::user());
         }
 
@@ -678,6 +692,13 @@ class OIDCController extends Controller
 
         /** @var User */
         $user = auth()->user();
+
+        if (!$user->verified) {
+            return response()->json([
+                'error' => 'invalid_token',
+                'error_description' => 'User email is not verified',
+            ], Response::HTTP_UNAUTHORIZED);
+        }
 
         $resp = [
             'sub' => strval($user->uid),
