@@ -1122,6 +1122,10 @@ class OIDCService
             throw new OIDCException('invalid_token', 'User not found or banned');
         }
 
+        if (!$user->verified) {
+            throw new OIDCException('invalid_token', 'User email is not verified');
+        }
+
         $scopes = $parsed->claims()->get('scopes') ?? explode(' ', $parsed->claims()->get('scope', ''));
         if (is_string($scopes)) {
             $scopes = explode(' ', $scopes);
