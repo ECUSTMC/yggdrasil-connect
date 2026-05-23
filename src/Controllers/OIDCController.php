@@ -684,6 +684,8 @@ class OIDCController extends Controller
         ];
 
         if ($user->tokenCan(Scope::PROFILE)) {
+            $resp['name'] = $user->nickname;
+            $resp['preferred_username'] = $user->nickname;
             $resp['nickname'] = $user->nickname;
             $resp['picture'] = url('avatar/user', $user->uid);
         }

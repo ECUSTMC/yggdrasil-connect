@@ -101,6 +101,8 @@ class OIDCService
                 'acr',
                 'amr',
                 'azp',
+                'name',
+                'preferred_username',
                 'nickname',
                 'picture',
                 'email',
@@ -773,6 +775,8 @@ class OIDCService
         ];
 
         if (in_array(Scope::PROFILE, $scopes)) {
+            $claims['name'] = $user->nickname;
+            $claims['preferred_username'] = $user->nickname;
             $claims['nickname'] = $user->nickname;
             $claims['picture'] = url('avatar/user', $user->uid);
         }
@@ -1115,6 +1119,8 @@ class OIDCService
         ];
 
         if (in_array(Scope::PROFILE, $scopes)) {
+            $userInfo['name'] = $user->nickname;
+            $userInfo['preferred_username'] = $user->nickname;
             $userInfo['nickname'] = $user->nickname;
             $userInfo['picture'] = url('avatar/user', $user->uid);
         }
