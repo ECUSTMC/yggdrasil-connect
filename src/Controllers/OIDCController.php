@@ -112,7 +112,7 @@ class OIDCController extends Controller
         return redirect()->to(option('site_url').'/oauth/authorize?'.http_build_query([
             'client_id' => $clientId,
             'response_type' => 'code',
-            'scope' => implode(' ', $scopes),
+            'scope' => implode(' ', array_unique($scopes)),
             'redirect_uri' => option('site_url').'/yggc/callback',
             'state' => $this->oidc->createInteraction($authRequest),
             'prompt' => 'consent',

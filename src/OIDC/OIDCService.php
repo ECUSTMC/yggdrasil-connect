@@ -903,6 +903,19 @@ class OIDCService
         $clientId = $params['client_id'] ?? null;
         $clientSecret = $params['client_secret'] ?? null;
 
+        // Support HTTP Basic Auth (RFC 6749 §2.3.1)
+        if (empty($clientId) || empty($clientSecret)) {
+            $basic = request()->header('Authorization', '');
+            if (str_starts_with($basic, 'Basic ')) {
+                $decoded = base64_decode(substr($basic, 6));
+                if (str_contains($decoded, ':')) {
+                    [$basicId, $basicSecret] = explode(':', $decoded, 2);
+                    $clientId = $clientId ?: $basicId;
+                    $clientSecret = $clientSecret ?: $basicSecret;
+                }
+            }
+        }
+
         if (empty($clientId)) {
             return null;
         }
