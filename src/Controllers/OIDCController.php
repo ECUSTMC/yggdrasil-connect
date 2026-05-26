@@ -174,7 +174,7 @@ class OIDCController extends Controller
             if (!$grant || empty($grant['selectedProfile'])) {
                 $bsUser = User::find($user->uid);
                 return view('LittleSkin\YggdrasilConnect::select-profile', [
-                    'name' => $this->formatClientName($authRequest['client']),
+                    'name' => $authRequest['client']->name,
                     'code_id' => $grantId,
                     'state' => $authRequest['state'] ?? '',
                     'availableProfiles' => Profile::getAvailableProfiles($bsUser),
@@ -580,7 +580,7 @@ class OIDCController extends Controller
                 );
 
                 return view('LittleSkin\YggdrasilConnect::select-profile', [
-                    'name' => $this->formatClientName($client),
+                    'name' => $client->name,
                     'code_id' => $grantId,
                     'state' => $state,
                     'availableProfiles' => Profile::getAvailableProfiles($user),
@@ -729,23 +729,5 @@ class OIDCController extends Controller
         }
 
         return response()->json($resp);
-    }
-
-    private function formatClientName(Client $client): string
-    {
-        $name = $client->name;
-        $redirect = $client->redirect;
-        if ($redirect) {
-            $urls = array_map('trim', explode(',', $redirect));
-            // Skip internal/yggc redirect URLs
-            foreach ($urls as $url) {
-                $host = parse_url($url, PHP_URL_HOST);
-                if ($host && !str_starts_with($url, option('site_url').'/yggc/')) {
-                    return "$name ($host)";
-                }
-            }
-        }
-
-        return $name;
     }
 }
