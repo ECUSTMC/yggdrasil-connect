@@ -118,3 +118,7 @@ yggc:
     title: 共享客户端 ID
     description: 用于设备授权流程的共享 OAuth 客户端 ID。启动器会从 OIDC Discovery 文档中读取此 ID 并自动使用。
     hint: 留空时将自动使用 PASSPORT_PERSONAL_ACCESS_CLIENT_ID 环境变量的值。
+  enable_campus_status:
+    title: 启用在校状态查询
+    label: 启用 campus-status 权限范围
+    description: 启用后，客户端可请求 <code>campus-status</code> 权限范围，在用户信息和 ID 令牌中获取用户的在校状态。需配合 <a href="https://cnb.cool/ecustmc/campus-status" target="_blank">campus-status 插件</a> 使用。

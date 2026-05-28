@@ -86,7 +86,6 @@ class OIDCService
                 'profile',
                 'email',
                 'offline_access',
-                Scope::CAMPUS_STATUS,
                 Scope::PROFILE_READ,
                 Scope::PROFILE_SELECT,
                 Scope::SERVER_JOIN,
@@ -108,7 +107,6 @@ class OIDCService
                 'picture',
                 'email',
                 'email_verified',
-                'campus_status',
                 'selectedProfile',
                 'availableProfiles',
             ],
@@ -132,6 +130,11 @@ class OIDCService
         $sharedClientId = option('ygg_shared_client_id') ?: env('PASSPORT_PERSONAL_ACCESS_CLIENT_ID');
         if (!empty($sharedClientId)) {
             $config['shared_client_id'] = $sharedClientId;
+        }
+
+        if (option('ygg_enable_campus_status')) {
+            $config['scopes_supported'][] = Scope::CAMPUS_STATUS;
+            $config['claims_supported'][] = 'campus_status';
         }
 
         return $config;
@@ -212,6 +215,10 @@ class OIDCService
         }
 
         $validScopes = Scope::getAllScopes();
+        // Remove campus-status from valid scopes if not enabled
+        if (!option('ygg_enable_campus_status')) {
+            $validScopes = array_values(array_filter($validScopes, fn($s) => $s !== Scope::CAMPUS_STATUS));
+        }
         foreach ($scopes as $scope) {
             if (!in_array($scope, $validScopes)) {
                 $e = new OIDCException('invalid_scope', "Invalid scope: $scope", $params['state'] ?? null);
@@ -788,7 +795,7 @@ class OIDCService
             $claims['email_verified'] = true;
         }
 
-        if (in_array(Scope::CAMPUS_STATUS, $scopes)) {
+        if (in_array(Scope::CAMPUS_STATUS, $scopes) && option('ygg_enable_campus_status')) {
             $claims['campus_status'] = $this->checkCampusStatus((string) $user->uid);
         }
 
@@ -1153,7 +1160,7 @@ class OIDCService
             $userInfo['email_verified'] = true;
         }
 
-        if (in_array(Scope::CAMPUS_STATUS, $scopes)) {
+        if (in_array(Scope::CAMPUS_STATUS, $scopes) && option('ygg_enable_campus_status')) {
             $userInfo['campus_status'] = $this->checkCampusStatus((string) $user->uid);
         }
 
@@ -1179,6 +1186,10 @@ class OIDCService
 
     private function checkCampusStatus(string $uid): bool
     {
+        if (!Schema::hasTable('campus_status_records')) {
+            return false;
+        }
+
         $record = DB::table('campus_status_records')->where('uid', $uid)->first();
         if (!$record || $record->expires_at === null) {
             return false;

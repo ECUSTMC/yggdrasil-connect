@@ -113,6 +113,9 @@ class ConfigController extends Controller
                 ->hint(trans('LittleSkin\\YggdrasilConnect::config.yggc.disable_authserver.hint'))
                 ->label(trans('LittleSkin\\YggdrasilConnect::config.yggc.disable_authserver.label'))
                 ->description(trans('LittleSkin\\YggdrasilConnect::config.yggc.disable_authserver.description'));
+            $form->checkbox('ygg_enable_campus_status', trans('LittleSkin\\YggdrasilConnect::config.yggc.enable_campus_status.title'))
+                ->label(trans('LittleSkin\\YggdrasilConnect::config.yggc.enable_campus_status.label'))
+                ->description(trans('LittleSkin\\YggdrasilConnect::config.yggc.enable_campus_status.description'));
         })->handle();
 
         $client = $this->clientRepository->find(env('PASSPORT_PERSONAL_ACCESS_CLIENT_ID'));
