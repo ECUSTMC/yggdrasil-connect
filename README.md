@@ -68,7 +68,7 @@ Yggdrasil Connect 的出现正是为了解决这些问题。通过 OAuth 2.0 和
 - **授权过期时间**：用户授权的有效时间，过期后需要重新授权
 - **共享客户端 ID**：用于设备授权流程的共享 OAuth 客户端 ID，启动器会从 OIDC Discovery 文档中读取此 ID 并自动使用。留空时自动使用 `PASSPORT_PERSONAL_ACCESS_CLIENT_ID` 环境变量的值，通常无需手动填写
 - **禁用 Auth Server**：禁用后，用户将无法通过在启动器中输入用户名和密码的传统方式登录，必须通过 Yggdrasil Connect 登录
-- **启用在校状态查询**：启用后，客户端可请求 `campus-status` 权限范围，在用户信息和 ID 令牌中获取用户的在校状态（`campus_status`: `true`/`false`）。需配合 [campus-status 插件](https://cnb.cool/ecustmc/campus-status) 使用，默认关闭
+- **启用在校状态查询**：启用后，客户端可请求 `campus_status` 权限范围，在用户信息和 ID 令牌中获取用户的在校状态（`campus_status`: `true`/`false`）。需配合 [campus-status 插件](https://cnb.cool/ecustmc/campus-status) 使用，默认关闭
 
 > **注意**：如果你之前使用了独立部署的 [Janus](https://github.com/bs-community/janus) 项目，本插件已内置其全部功能，可以将其停用。
 

@@ -41,9 +41,9 @@ return [
             ]);
         }
 
-        if (!Scope::where('name', 'campus-status')->exists()) {
+        if (!Scope::where('name', 'campus_status')->exists()) {
             Scope::create([
-                'name' => 'campus-status',
+                'name' => 'campus_status',
                 'description' => 'LittleSkin\\YggdrasilConnect::scopes.campus-status',
             ]);
         }

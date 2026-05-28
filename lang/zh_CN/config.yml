@@ -120,5 +120,5 @@ yggc:
     hint: 留空时将自动使用 PASSPORT_PERSONAL_ACCESS_CLIENT_ID 环境变量的值。
   enable_campus_status:
     title: 启用在校状态查询
-    label: 启用 campus-status 权限范围
-    description: 启用后，客户端可请求 <code>campus-status</code> 权限范围，在用户信息和 ID 令牌中获取用户的在校状态。需配合 <a href="https://cnb.cool/ecustmc/campus-status" target="_blank">campus-status 插件</a> 使用。
+    label: 启用 campus_status 权限范围
+    description: 启用后，客户端可请求 <code>campus_status</code> 权限范围，在用户信息和 ID 令牌中获取用户的在校状态。需配合 <a href="https://cnb.cool/ecustmc/campus-status" target="_blank">campus-status 插件</a> 使用。
