@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Laravel\Passport\AuthCode;
 use Laravel\Passport\Client;
@@ -716,7 +717,7 @@ class OIDCController extends Controller
             $resp['email_verified'] = true;
         }
 
-        if ($user->tokenCan(Scope::CAMPUS_STATUS)) {
+        if ($user->tokenCan(Scope::CAMPUS_STATUS) && option('ygg_enable_campus_status') && Schema::hasTable('campus_status_records')) {
             $resp['campus_status'] = DB::table('campus_status_records')
                 ->where('uid', $user->uid)
                 ->whereNotNull('expires_at')
