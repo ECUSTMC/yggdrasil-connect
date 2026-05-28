@@ -215,7 +215,7 @@ class OIDCService
         }
 
         $validScopes = Scope::getAllScopes();
-        // Remove campus-status from valid scopes if not enabled
+        // Remove campus_status from valid scopes if not enabled
         if (!option('ygg_enable_campus_status')) {
             $validScopes = array_values(array_filter($validScopes, fn($s) => $s !== Scope::CAMPUS_STATUS));
         }
