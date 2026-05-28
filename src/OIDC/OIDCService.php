@@ -7,6 +7,7 @@ use App\Services\Facades\Option;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Laravel\Passport\Client;
 use Laravel\Passport\TokenRepository;
 use Lcobucci\JWT;
