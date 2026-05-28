@@ -86,6 +86,7 @@ class OIDCService
                 'profile',
                 'email',
                 'offline_access',
+                Scope::CAMPUS_STATUS,
                 Scope::PROFILE_READ,
                 Scope::PROFILE_SELECT,
                 Scope::SERVER_JOIN,
@@ -107,6 +108,7 @@ class OIDCService
                 'picture',
                 'email',
                 'email_verified',
+                'campus_status',
                 'selectedProfile',
                 'availableProfiles',
             ],
@@ -786,6 +788,10 @@ class OIDCService
             $claims['email_verified'] = true;
         }
 
+        if (in_array(Scope::CAMPUS_STATUS, $scopes)) {
+            $claims['campus_status'] = $this->checkCampusStatus((string) $user->uid);
+        }
+
         if (in_array(Scope::PROFILE_SELECT, $scopes)) {
             $grant = $this->findGrant($grantId);
             if ($grant && !empty($grant['selectedProfile'])) {
@@ -1147,6 +1153,10 @@ class OIDCService
             $userInfo['email_verified'] = true;
         }
 
+        if (in_array(Scope::CAMPUS_STATUS, $scopes)) {
+            $userInfo['campus_status'] = $this->checkCampusStatus((string) $user->uid);
+        }
+
         if (in_array(Scope::PROFILE_SELECT, $scopes)) {
             $selectedProfile = $parsed->claims()->get('selectedProfile');
             if ($selectedProfile) {
@@ -1165,5 +1175,15 @@ class OIDCService
         }
 
         return $userInfo;
+    }
+
+    private function checkCampusStatus(string $uid): bool
+    {
+        $record = DB::table('campus_status_records')->where('uid', $uid)->first();
+        if (!$record || $record->expires_at === null) {
+            return false;
+        }
+
+        return Carbon::parse($record->expires_at)->isFuture();
     }
 }

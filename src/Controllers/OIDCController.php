@@ -716,6 +716,14 @@ class OIDCController extends Controller
             $resp['email_verified'] = true;
         }
 
+        if ($user->tokenCan(Scope::CAMPUS_STATUS)) {
+            $resp['campus_status'] = DB::table('campus_status_records')
+                ->where('uid', $user->uid)
+                ->whereNotNull('expires_at')
+                ->where('expires_at', '>', Carbon::now())
+                ->exists();
+        }
+
         if ($user->tokenCan(Scope::PROFILE_SELECT)) {
             $profile = Profile::createFromUuid($user->yggdrasilToken()->selectedProfile);
             $resp['selectedProfile'] = [

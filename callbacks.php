@@ -41,6 +41,13 @@ return [
             ]);
         }
 
+        if (!Scope::where('name', 'campus-status')->exists()) {
+            Scope::create([
+                'name' => 'campus-status',
+                'description' => 'LittleSkin\\YggdrasilConnect::scopes.campus-status',
+            ]);
+        }
+
         if (!Scope::where('name', 'Yggdrasil.PlayerProfiles.Read')->exists()) {
             Scope::create([
                 'name' => 'Yggdrasil.PlayerProfiles.Read',
@@ -82,6 +89,15 @@ return [
                 $table->string('parameters', 2048)->default('');
                 $table->string('ip')->default('');
                 $table->dateTime('time');
+            });
+        }
+
+        if (!Schema::hasTable('campus_status_records')) {
+            Schema::create('campus_status_records', function (Blueprint $table) {
+                $table->unsignedInteger('uid')->primary();
+                $table->string('ip', 45)->nullable();
+                $table->timestamp('verified_at')->nullable();
+                $table->timestamp('expires_at')->nullable();
             });
         }
 

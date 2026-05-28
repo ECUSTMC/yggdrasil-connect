@@ -1,6 +1,7 @@
 openid: 读取用户身份标识符
 profile: 读取用户信息
 email: 读取用户邮箱地址
+campus-status: 查询用户在校状态
 offline-access: 保持已授予的访问权限
 
 player-profiles:
