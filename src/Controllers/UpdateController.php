@@ -114,11 +114,16 @@ class UpdateController extends Controller {
 
     /**
      * CNB 流水线合并并推送上游更新后回调本端点。
-     * 校验由 VerifyCnbCallback 中间件完成；这里直接执行本地 git pull。
+     * 校验由 VerifyCnbCallback 中间件完成；这里执行本地 git pull 并热重载插件。
      */
-    public function cnbCallback(Request $request)
+    public function cnbCallback(Request $request, PluginManager $manager)
     {
         $this->gitPull();
+
+        // 热重载：重新加载插件使新代码生效（与原 zip 更新逻辑一致）
+        $plugin = plugin('yggdrasil-connect');
+        $manager->disable($plugin);
+        $manager->enable($plugin);
 
         return response()->json(['code' => 0, 'message' => 'ok']);
     }
