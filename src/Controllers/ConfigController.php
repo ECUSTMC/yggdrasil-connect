@@ -75,7 +75,7 @@ class ConfigController extends Controller
                 ->hint(trans('LittleSkin\\YggdrasilConnect::config.cnb.upstream.hint'));
             $form->text('cnb_upstream_ref', trans('LittleSkin\\YggdrasilConnect::config.cnb.upstream_ref.title'))
                 ->hint(trans('LittleSkin\\YggdrasilConnect::config.cnb.upstream_ref.hint'));
-            $form->password('cnb_token', trans('LittleSkin\\YggdrasilConnect::config.cnb.token.title'))
+            $form->text('cnb_token', trans('LittleSkin\\YggdrasilConnect::config.cnb.token.title'))
                 ->hint(trans('LittleSkin\\YggdrasilConnect::config.cnb.token.hint'));
             $form->text('cnb_php_path', trans('LittleSkin\\YggdrasilConnect::config.cnb.php_path.title'))
                 ->hint(trans('LittleSkin\\YggdrasilConnect::config.cnb.php_path.hint'));
