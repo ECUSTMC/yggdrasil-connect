@@ -192,7 +192,10 @@ class UpdateController extends Controller {
      */
     protected function runGit(string $dir, array $args, ?callable $onStdout = null, ?callable $onError = null): bool
     {
-        $cmd = array_merge(['git', '-C', $dir], $args);
+        // safe.directory=$dir：跳过 git 的 dubious ownership 检查，
+        // 避免插件目录由 root 克隆、PHP-FPM(www) 运行时被 git 拒绝。
+        // 只信任当前插件目录；命令参数全部为代码内写死，无注入面。
+        $cmd = array_merge(['git', '-c', 'safe.directory='.$dir, '-C', $dir], $args);
         $proc = proc_open($cmd, [
             1 => ['pipe', 'w'],
             2 => ['pipe', 'w'],
