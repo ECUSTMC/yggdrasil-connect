@@ -17,7 +17,7 @@ class UpdateController extends Controller {
      *
      * 当开启 cnb_enable 时：
      *   立即向联盟返回 200（受理成功），并通过后台 artisan 命令
-     *   （yggc:cnb-sync）触发 CNB 流水线合并上游，成功后本地 git pull。
+     *   （yggc:cnb-sync）触发 CNB 流水线合并上游，成功后本地 git 强制同步。
      *   冲突/失败由 CNB 流水线自动建 Issue，插件仅记录日志。
      * 未开启 cnb_enable 时保持原有行为：下载 zip 覆盖插件目录。
      */
@@ -114,7 +114,7 @@ class UpdateController extends Controller {
 
     /**
      * CNB 流水线合并并推送上游更新后回调本端点。
-     * 校验由 VerifyCnbCallback 中间件完成；这里执行本地 git pull 并热重载插件。
+     * 校验由 VerifyCnbCallback 中间件完成；这里执行本地 git 强制同步并热重载插件。
      */
     public function cnbCallback(Request $request, PluginManager $manager)
     {
@@ -129,8 +129,8 @@ class UpdateController extends Controller {
     }
 
     /**
-     * 在插件目录执行 git pull 拉取已合并的更新。
-     * 校验本地分支/远端与配置一致，避免 pull 到错误对象。
+     * 强制同步插件目录到远程：fetch + reset --hard origin/<branch>。
+     * 丢弃服务器本地所有改动；校验本地分支/远端与配置一致，避免同步到错误对象。
      */
     protected function gitPull(): void
     {
@@ -177,12 +177,25 @@ class UpdateController extends Controller {
             abort(500, 'git remote get-url failed.');
         }
 
-        $ok = $this->runGit($dir, ['pull', '--ff-only'], null, function (string $stderr) {
-            Log::channel('ygg')->error('CNB update: git pull failed.', ['stderr' => $stderr]);
-            abort(500, 'git pull failed.');
+        // 强制同步：丢弃服务器本地所有改动，无条件对齐远程。
+        // 插件目录是部署镜像，不应有本地修改；若有（如误改文件），
+        // 普通 pull 会因 "local changes would be overwritten" 拒绝，故用 reset --hard。
+        // 显式 refspec：确保 reset 目标始终是该分支当前远端状态（分支被删则 fetch 失败中止）
+        $refspec = '+refs/heads/'.$branch.':refs/remotes/origin/'.$branch;
+        $ok = $this->runGit($dir, ['fetch', 'origin', $refspec], null, function (string $stderr) {
+            Log::channel('ygg')->error('CNB update: git fetch failed.', ['stderr' => $stderr]);
+            abort(500, 'git fetch failed.');
         });
         if (!$ok) {
-            abort(500, 'git pull failed.');
+            abort(500, 'git fetch failed.');
+        }
+
+        $ok = $this->runGit($dir, ['reset', '--hard', 'origin/'.$branch], null, function (string $stderr) {
+            Log::channel('ygg')->error('CNB update: git reset --hard failed.', ['stderr' => $stderr]);
+            abort(500, 'git reset --hard failed.');
+        });
+        if (!$ok) {
+            abort(500, 'git reset --hard failed.');
         }
     }
 

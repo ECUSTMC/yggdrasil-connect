@@ -200,7 +200,7 @@ return function (Dispatcher $events, Filter $filter, Request $request) {
                     });
 
                 // MODIFICATION: CNB-GIT-UPDATE
-                // CNB 流水线合并上游成功后回调本端点，触发本地 git pull
+                // CNB 流水线合并上游成功后回调本端点，触发本地 git 强制同步
                 Route::prefix('api/cnb')
                     ->middleware(['LittleSkin\YggdrasilConnect\Middleware\VerifyCnbCallback'])
                     ->group(function () {

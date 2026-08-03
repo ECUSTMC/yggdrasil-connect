@@ -13,7 +13,7 @@ class VerifyCnbCallback
      *
      * 流水线在合并并推送上游更新后，会携带 X-CNB-Callback-Token 请求
      * /api/cnb/sync-callback；本中间件校验该 token 与配置的
-     * cnb_callback_secret 一致，防止未授权请求触发本地 git pull。
+     * cnb_callback_secret 一致，防止未授权请求触发本地 git 强制同步。
      */
     public function handle(Request $request, Closure $next)
     {
