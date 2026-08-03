@@ -65,6 +65,19 @@
 > - 流水线内 push 回 CNB 仓库、创建 Issue 使用的是 CNB 流水线运行期临时令牌 `CNB_TOKEN`，权限由 CNB 平台按可信事件自动分配，无需额外配置。令牌 `cnb_token` 仅用于触发流水线，请妥善保管。
 > - 联盟请求会立即收到 200 响应（异步受理）；流水线合并成功后通过回调通知插件执行 `git pull`，不再轮询。日志写入 `storage/logs/ygg-cnb-sync.log` 与 `yggdrasil.log`。
 
+### 部署注意事项
+
+1. **插件目录属主必须是 PHP-FPM 运行用户**（通常是 `www`）。若目录由 `root` 克隆、PHP-FPM 以 `www` 运行：
+   - 只读校验（`rev-parse`、`remote get-url`）会因 git 的 dubious ownership 检查失败（已由代码内 `-c safe.directory=$dir` 兜底）；
+   - **`git pull` 因写权限不足必然失败**，回调返回 500。必须执行：
+     ```bash
+     chown -R www:www /path/to/site/plugins/yggdrasil-connect
+     ```
+2. **`CALLBACK_URL` 自动生成**：回调地址由插件以 `site_url` 为基准自动生成（`{site_url}/api/cnb/sync-callback`），无需手动配置。请确保 `site_url` 是公网可达的 HTTPS 地址，且该路径未被防火墙/安全组拦截。
+3. **PHP CLI 路径**：后台更新进程通过 `proc_open`/`exec` 启动 `php artisan yggc:cnb-sync`。若服务器上 PHP-FPM 的 PATH 中找不到 `php`，在插件配置「PHP CLI 路径」填入绝对路径（`which php` 查询，一般为 `/usr/bin/php`）。
+4. **回调令牌一致性**：`cnb_callback_secret`（插件配置）必须与 CNB 密钥仓库 `env.yml` 中的 `CNB_CALLBACK_SECRET` 完全一致，否则回调被拒绝（403）。
+5. **流水线配置需推送**：`.cnb.yml` 的 `api_trigger_upstream_sync` 流水线定义在 CNB 仓库 master 分支，改动后需 `git push origin master` 才会生效。
+
 ## 已知问题
 
 - 在部分情况下，用户在通过传统 Auth Server 登录时，可能会遇到 HTTP 500 错误；或在请求 OAuth 授权时，在请求了正确的 scope 的情况下，仍遇到 `invalid_scopes` 错误。
