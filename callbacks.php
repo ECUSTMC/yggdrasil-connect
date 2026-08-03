@@ -208,6 +208,7 @@ return [
             'cnb_upstream_ref' => 'main',                           // 上游要合并的分支
             'cnb_token' => '',                                      // CNB OpenAPI 访问令牌（触发/查询构建，最小权限）
             'cnb_php_path' => 'php',                                // PHP CLI 路径，如 php 或 /usr/bin/php（可选）
+            'cnb_callback_secret' => '',                            // CNB 流水线回调令牌（需与密钥仓库中 CNB_CALLBACK_SECRET 一致）
             //'union_use_blacklist_locally' => true
         ];
 

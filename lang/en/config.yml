@@ -84,6 +84,9 @@ cnb:
   php_path:
     title: PHP CLI path
     hint: The php command used to launch the background update process. Leave empty for "php"; use an absolute path like /usr/bin/php if the background process fails to start.
+  callback_secret:
+    title: CNB callback token
+    hint: Token used by the pipeline to call back this site. Must match CNB_CALLBACK_SECRET in the CNB secret repository. Keep it safe.
 
 yggc:
   disable_authserver:

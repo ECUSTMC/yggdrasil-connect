@@ -198,6 +198,14 @@ return function (Dispatcher $events, Filter $filter, Request $request) {
                         Route::get('/', 'UnionOAuth2Controller@getSigPublicKey');
                         Route::get('grant', 'UnionOAuth2Controller@grant');
                     });
+
+                // MODIFICATION: CNB-GIT-UPDATE
+                // CNB 流水线合并上游成功后回调本端点，触发本地 git pull
+                Route::prefix('api/cnb')
+                    ->middleware(['LittleSkin\YggdrasilConnect\Middleware\VerifyCnbCallback'])
+                    ->group(function () {
+                        Route::post('sync-callback', 'UpdateController@cnbCallback');
+                    });
         
                 Route::middleware(['web', 'auth'])
                     ->prefix('union')

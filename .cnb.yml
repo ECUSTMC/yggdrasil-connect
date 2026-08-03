@@ -15,11 +15,13 @@ master:
             force: true
 
   # MODIFICATION: CNB-GIT-UPDATE
-  # 由插件 UpdateController 通过 OpenAPI 触发：合并上游更新到 master，冲突时创建 Issue
+  # 由插件 UpdateController 通过 OpenAPI 触发：合并上游更新到 master，冲突时创建 Issue；
+  # 合并成功后回调插件服务器，触发本地 git pull
   api_trigger_upstream_sync:
     - name: merge upstream
       runner:
         cpus: 1
+      imports: https://cnb.cool/ecustmc/key/-/blob/main/env.yml
       docker:
         image: alpine/git:latest
       stages:
@@ -44,6 +46,17 @@ master:
             # 用 credential.helper 内联 CNB_TOKEN，避免令牌落盘
             git -c credential.helper='!f() { echo "username=cnb"; echo "password=${CNB_TOKEN}"; }; f' \
               push "https://${CNB_WEB_HOST}/${CNB_REPO_SLUG}.git" "HEAD:${CNB_BRANCH}"
+      endStages:
+        - name: notify plugin on success
+          script: |
+            if [ "$(cat /workspace/merge-result 2>/dev/null)" = "OK" ]; then
+              # 回调插件服务器，触发本地 git pull；secret 从密钥仓库注入
+              printf 'X-CNB-Callback-Token: %s\n' "${CNB_CALLBACK_SECRET}" > /workspace/callback-header
+              curl -s -o /dev/null -w "%{http_code}" \
+                -H "@/workspace/callback-header" \
+                -X POST "${CALLBACK_URL}" \
+                > /workspace/callback-status
+            fi
       failStages:
         - name: create issue on conflict
           script: |

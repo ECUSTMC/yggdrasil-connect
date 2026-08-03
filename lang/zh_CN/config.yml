@@ -122,6 +122,9 @@ cnb:
   php_path:
     title: PHP CLI 路径
     hint: 启动后台更新进程用的 php 命令路径，留空默认为 php；若后台进程启动失败，可填绝对路径如 /usr/bin/php
+  callback_secret:
+    title: CNB 回调令牌
+    hint: 流水线回调本站用的令牌，需与 CNB 密钥仓库中的 CNB_CALLBACK_SECRET 一致，请妥善保管
 
 yggc:
   disable_authserver:

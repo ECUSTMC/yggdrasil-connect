@@ -79,6 +79,8 @@ class ConfigController extends Controller
                 ->hint(trans('LittleSkin\\YggdrasilConnect::config.cnb.token.hint'));
             $form->text('cnb_php_path', trans('LittleSkin\\YggdrasilConnect::config.cnb.php_path.title'))
                 ->hint(trans('LittleSkin\\YggdrasilConnect::config.cnb.php_path.hint'));
+            $form->text('cnb_callback_secret', trans('LittleSkin\\YggdrasilConnect::config.cnb.callback_secret.title'))
+                ->hint(trans('LittleSkin\\YggdrasilConnect::config.cnb.callback_secret.hint'));
         })->handle();
 
         /*
