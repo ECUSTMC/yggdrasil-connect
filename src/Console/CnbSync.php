@@ -31,6 +31,17 @@ class CnbSync extends Command
         $repo = (string) option('cnb_repo');
         $branch = (string) option('cnb_branch') ?: 'master';
 
+        // CLI 命令没有 HTTP 请求上下文，url() 会回退到 APP_URL/localhost；
+        // 回调地址必须以 site_url 为基准生成，否则流水线无法访问本站
+        $siteUrl = rtrim((string) option('site_url'), '/');
+        if ($siteUrl === '') {
+            Log::channel('ygg')->error('CNB update: site_url is not configured, cannot build callback URL.');
+            $this->error('site_url is not configured, cannot build callback URL.');
+
+            return;
+        }
+        $callbackUrl = $siteUrl.'/api/cnb/sync-callback';
+
         // 触发合并上游的流水线
         $start = Http::withToken($token)
             ->acceptJson()
@@ -40,7 +51,7 @@ class CnbSync extends Command
                 'env' => [
                     'UPSTREAM_URL' => (string) option('cnb_upstream'),
                     'UPSTREAM_REF' => (string) option('cnb_upstream_ref'),
-                    'CALLBACK_URL' => url('/api/cnb/sync-callback'),
+                    'CALLBACK_URL' => $callbackUrl,
                 ],
                 'sync' => 'false',
             ]);
