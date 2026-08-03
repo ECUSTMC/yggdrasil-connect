@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Route;
 use Laravel\Passport\Client;
 use Laravel\Passport\Passport;
 use LittleSkin\YggdrasilConnect\Console\CreatePersonalAccessClient;
+use LittleSkin\YggdrasilConnect\Console\CnbSync;
 use LittleSkin\YggdrasilConnect\Console\FixUUIDTable;
 use LittleSkin\YggdrasilConnect\Models\AccessToken;
 use LittleSkin\YggdrasilConnect\Models\Profile;
@@ -70,6 +71,7 @@ return function (Dispatcher $events, Filter $filter, Request $request) {
         $event->artisan->resolveCommands([
             CreatePersonalAccessClient::class,
             FixUUIDTable::class,
+            CnbSync::class,
         ]);
     });
     $events->listen('user.profile.updated', function (User $user, string $action) {

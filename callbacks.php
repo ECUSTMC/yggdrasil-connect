@@ -199,6 +199,15 @@ return [
             'union_private_key_version' => '0',
             'union_enable_update' => true,
             'union_enable_oauth2' => true,
+            // MODIFICATION: CNB-GIT-UPDATE
+            // 通过 CNB 流水线合并上游更新后再拉取，避免联盟 zip 覆盖本地改动
+            'cnb_enable' => false,                                   // 开启基于 CNB 流水线的更新模式
+            'cnb_repo' => 'ecustmc/yggdrasil-connect',              // CNB 上的插件仓库（本地 git clone 的来源）
+            'cnb_branch' => 'master',                               // 本地与 CNB 仓库使用的分支
+            'cnb_upstream' => 'https://github.com/MUAlliance/yggdrasil-connect.git',
+            'cnb_upstream_ref' => 'main',                           // 上游要合并的分支
+            'cnb_token' => '',                                      // CNB OpenAPI 访问令牌（触发/查询构建，最小权限）
+            'cnb_php_path' => 'php',                                // PHP CLI 路径，如 php 或 /usr/bin/php（可选）
             //'union_use_blacklist_locally' => true
         ];
 

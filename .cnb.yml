@@ -13,3 +13,49 @@ master:
             username: ${GITHUB_USERNAME}
             password: ${GITHUB_ACCESS_TOKEN}
             force: true
+
+  # MODIFICATION: CNB-GIT-UPDATE
+  # 由插件 UpdateController 通过 OpenAPI 触发：合并上游更新到 master，冲突时创建 Issue
+  api_trigger_upstream_sync:
+    - name: merge upstream
+      runner:
+        cpus: 1
+      docker:
+        image: alpine/git:latest
+      stages:
+        - name: merge upstream and push
+          script: |
+            set -e
+            git config user.name "cnb-sync-bot"
+            git config user.email "cnb-sync-bot@cnb.cool"
+
+            git remote remove upstream 2>/dev/null || true
+            git remote add upstream "${UPSTREAM_URL}"
+            git fetch upstream "${UPSTREAM_REF}"
+
+            if git merge FETCH_HEAD --no-edit; then
+              echo "OK" > /workspace/merge-result
+            else
+              echo "MERGE_CONFLICT" > /workspace/merge-result
+              git diff --name-only --diff-filter=U > /workspace/conflict-files.txt || true
+              exit 1
+            fi
+
+            # 用 credential.helper 内联 CNB_TOKEN，避免令牌落盘
+            git -c credential.helper='!f() { echo "username=cnb"; echo "password=${CNB_TOKEN}"; }; f' \
+              push "https://${CNB_WEB_HOST}/${CNB_REPO_SLUG}.git" "HEAD:${CNB_BRANCH}"
+      failStages:
+        - name: create issue on conflict
+          script: |
+            if [ "$(cat /workspace/merge-result 2>/dev/null)" = "MERGE_CONFLICT" ]; then
+              CONFLICT_FILES="$(tr '\n' ',' < /workspace/conflict-files.txt 2>/dev/null | sed 's/,$//')"
+              BODY="自动同步上游更新时发生合并冲突，请手动处理。\n\n冲突文件: ${CONFLICT_FILES}\n\n上游: ${UPSTREAM_URL} (${UPSTREAM_REF})\n构建日志: ${CNB_BUILD_WEB_URL}"
+              JSON="$(printf '{"title":"%s","body":"%s"}' "[auto-sync] 上游更新合并冲突" "$BODY")"
+              # 从环境读取 token 写入临时 header 文件，避免 token 出现在进程 argv
+              printf 'Authorization: Bearer %s\n' "${CNB_TOKEN}" > /workspace/auth-header
+              curl -s -o /dev/null \
+                -H "@/workspace/auth-header" \
+                -H "Content-Type: application/json" \
+                -d "${JSON}" \
+                "${CNB_API_ENDPOINT}/${CNB_REPO_SLUG}/-/issues"
+            fi

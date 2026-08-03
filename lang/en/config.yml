@@ -60,6 +60,31 @@ union:
     name: User Center Name
     bs_root: User Center URL
 
+cnb:
+  title: CNB Pipeline Update
+  enable:
+    title: Enable CNB-pipeline-based updates
+    hint: When enabled, a Union "update plugin" request will no longer download a zip to overwrite the plugin. Instead it triggers a CNB pipeline to merge upstream changes.
+    label: Merge upstream via CNB pipeline (avoid overwriting local changes)
+  repo:
+    title: CNB repository
+    hint: The repository your local plugin is git-cloned from, formatted as "org/repo", e.g. ecustmc/yggdrasil-connect
+  branch:
+    title: Update branch
+    hint: The branch used by your local plugin and the CNB repository, e.g. master
+  upstream:
+    title: Upstream repository URL
+    hint: The git URL of the upstream repo to merge, e.g. your fork source
+  upstream_ref:
+    title: Upstream branch
+    hint: The upstream branch to merge, e.g. main
+  token:
+    title: CNB access token
+    hint: OpenAPI token used to trigger the CNB pipeline and query build status. Use a least-privilege token and keep it safe.
+  php_path:
+    title: PHP CLI path
+    hint: The php command used to launch the background update process. Leave empty for "php"; use an absolute path like /usr/bin/php if the background process fails to start.
+
 yggc:
   disable_authserver:
     title: Disable Auth Server

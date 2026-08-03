@@ -98,6 +98,31 @@ union:
       valid: 密钥有效
       invalid: 密钥无效，此站点无法授权Union OAuth2
 
+cnb:
+  title: CNB 流水线更新
+  enable:
+    title: 启用基于 CNB 流水线的更新
+    hint: 开启后，联盟下发「更新插件」请求时将不再直接下载 zip 覆盖，而是触发 CNB 流水线合并上游更新。
+    label: 用 CNB 流水线合并上游更新（避免覆盖本地改动）
+  repo:
+    title: CNB 仓库
+    hint: 本地插件 git clone 的来源仓库，格式为「组织/仓库」，例如 ecustmc/yggdrasil-connect
+  branch:
+    title: 更新分支
+    hint: 本地插件与 CNB 仓库使用的分支，例如 master
+  upstream:
+    title: 上游仓库 URL
+    hint: 要合并的上游 git 地址，例如您 fork 的原仓库
+  upstream_ref:
+    title: 上游分支
+    hint: 上游要合并的分支，例如 main
+  token:
+    title: CNB 访问令牌
+    hint: 用于触发 CNB 流水线并查询构建状态的 OpenAPI 令牌，请使用最小权限令牌并妥善保管
+  php_path:
+    title: PHP CLI 路径
+    hint: 启动后台更新进程用的 php 命令路径，留空默认为 php；若后台进程启动失败，可填绝对路径如 /usr/bin/php
+
 yggc:
   disable_authserver:
     title: 禁用 Auth Server

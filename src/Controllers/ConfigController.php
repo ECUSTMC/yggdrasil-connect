@@ -63,6 +63,24 @@ class ConfigController extends Controller
             */
         })->handle();
 
+        $cnbForm = Option::form('cnb', trans('LittleSkin\\YggdrasilConnect::config.cnb.title'), function (OptionForm $form) {
+            $form->checkbox('cnb_enable', trans('LittleSkin\\YggdrasilConnect::config.cnb.enable.title'))
+                ->hint(trans('LittleSkin\\YggdrasilConnect::config.cnb.enable.hint'))
+                ->label(trans('LittleSkin\\YggdrasilConnect::config.cnb.enable.label'));
+            $form->text('cnb_repo', trans('LittleSkin\\YggdrasilConnect::config.cnb.repo.title'))
+                ->hint(trans('LittleSkin\\YggdrasilConnect::config.cnb.repo.hint'));
+            $form->text('cnb_branch', trans('LittleSkin\\YggdrasilConnect::config.cnb.branch.title'))
+                ->hint(trans('LittleSkin\\YggdrasilConnect::config.cnb.branch.hint'));
+            $form->text('cnb_upstream', trans('LittleSkin\\YggdrasilConnect::config.cnb.upstream.title'))
+                ->hint(trans('LittleSkin\\YggdrasilConnect::config.cnb.upstream.hint'));
+            $form->text('cnb_upstream_ref', trans('LittleSkin\\YggdrasilConnect::config.cnb.upstream_ref.title'))
+                ->hint(trans('LittleSkin\\YggdrasilConnect::config.cnb.upstream_ref.hint'));
+            $form->password('cnb_token', trans('LittleSkin\\YggdrasilConnect::config.cnb.token.title'))
+                ->hint(trans('LittleSkin\\YggdrasilConnect::config.cnb.token.hint'));
+            $form->text('cnb_php_path', trans('LittleSkin\\YggdrasilConnect::config.cnb.php_path.title'))
+                ->hint(trans('LittleSkin\\YggdrasilConnect::config.cnb.php_path.hint'));
+        })->handle();
+
         /*
         $keypairForm = Option::form('keypair', trans('LittleSkin\\YggdrasilConnect::config.keypair.title'), function (OptionForm $form) {
             $form->textarea('ygg_private_key', trans('LittleSkin\\YggdrasilConnect::config.keypair.ygg_private_key.title'))
@@ -129,7 +147,7 @@ class ConfigController extends Controller
         Hook::addScriptFileToPage(plugin('yggdrasil-connect')->assets('config.js'));
 
         return view('LittleSkin\\YggdrasilConnect::config', [
-            'forms' => ['common' => $commonForm, 'restore_api' => $restoreAPIForm, 'union' => $unionForm, 'union_oauth2_form' => $unionOAuth2Form, 'yggc' => $yggcForm],
+            'forms' => ['common' => $commonForm, 'restore_api' => $restoreAPIForm, 'union' => $unionForm, 'union_oauth2_form' => $unionOAuth2Form, 'cnb' => $cnbForm, 'yggc' => $yggcForm],
             'servers' => json_decode(option('union_server_list')),
             'server_list_version' => (int)option('union_server_list_version'),
             'private_key' => option('ygg_private_key'),
