@@ -29,7 +29,7 @@
 
 默认情况下，联盟服务器下发「更新插件」请求时，本插件会直接下载 zip 覆盖插件目录（`UpdateController::update`）。如果你在本地对插件做过改动，这种覆盖方式会丢失你的改动。
 
-本插件提供一种可选的更新模式：**不再下载 zip，而是触发 [CNB](https://cnb.cool) 流水线，把上游更新合并进你的 CNB 仓库，再让本地插件 `git pull`**。这样你的本地改动会在合并时保留，而不是被覆盖。
+本插件提供一种可选的更新模式：**不再下载 zip，而是触发 [CNB](https://cnb.cool) 流水线，把上游更新合并进你的 CNB 仓库，再让本地插件强制同步**。这样你的本地改动会在合并时保留，而不是被覆盖。
 
 ### 工作流程
 
@@ -42,7 +42,7 @@
           ├─ 无冲突：push 回 CNB 仓库
           └─ 有冲突：不 push，通过 CNB OpenAPI 创建 Issue 通知，构建失败
       → 合并成功后流水线回调插件服务器 /api/cnb/sync-callback（带回调令牌）
-      → 插件收到回调后本地执行 git pull --ff-only 完成更新
+      → 插件收到回调后强制同步（fetch + reset --hard）完成更新
 ```
 
 ### 启用步骤
@@ -63,20 +63,21 @@
 
 > **注意**：
 > - 流水线内 push 回 CNB 仓库、创建 Issue 使用的是 CNB 流水线运行期临时令牌 `CNB_TOKEN`，权限由 CNB 平台按可信事件自动分配，无需额外配置。令牌 `cnb_token` 仅用于触发流水线，请妥善保管。
-> - 联盟请求会立即收到 200 响应（异步受理）；流水线合并成功后通过回调通知插件执行 `git pull`，不再轮询。日志写入 `storage/logs/ygg-cnb-sync.log` 与 `yggdrasil.log`。
+> - 联盟请求会立即收到 200 响应（异步受理）；流水线合并成功后通过回调通知插件强制同步，不再轮询。日志写入 `storage/logs/ygg-cnb-sync.log` 与 `yggdrasil.log`。
 
 ### 部署注意事项
 
 1. **插件目录属主必须是 PHP-FPM 运行用户**（通常是 `www`）。若目录由 `root` 克隆、PHP-FPM 以 `www` 运行：
    - 只读校验（`rev-parse`、`remote get-url`）会因 git 的 dubious ownership 检查失败（已由代码内 `-c safe.directory=$dir` 兜底）；
-   - **`git pull` 因写权限不足必然失败**，回调返回 500。必须执行：
+   - **`git reset --hard` 因写权限不足必然失败**，回调返回 500。必须执行：
      ```bash
      chown -R www:www /path/to/site/plugins/yggdrasil-connect
      ```
-2. **`CALLBACK_URL` 自动生成**：回调地址由插件以 `site_url` 为基准自动生成（`{site_url}/api/cnb/sync-callback`），无需手动配置。请确保 `site_url` 是公网可达的 HTTPS 地址，且该路径未被防火墙/安全组拦截。
-3. **PHP CLI 路径**：后台更新进程通过 `proc_open`/`exec` 启动 `php artisan yggc:cnb-sync`。若服务器上 PHP-FPM 的 PATH 中找不到 `php`，在插件配置「PHP CLI 路径」填入绝对路径（`which php` 查询，一般为 `/usr/bin/php`）。
-4. **回调令牌一致性**：`cnb_callback_secret`（插件配置）必须与 CNB 密钥仓库 `env.yml` 中的 `CNB_CALLBACK_SECRET` 完全一致，否则回调被拒绝（403）。
-5. **流水线配置需推送**：`.cnb.yml` 的 `api_trigger_upstream_sync` 流水线定义在 CNB 仓库 master 分支，改动后需 `git push origin master` 才会生效。
+2. **更新采用强制同步（`git fetch` + `git reset --hard origin/<branch>`）**：回调更新时会丢弃服务器插件目录上已跟踪文件的全部本地改动，无条件对齐远程。插件目录应视为部署镜像，请勿在其中直接修改文件；本地改动请提交到 CNB 仓库后由流水线合并推送。（未跟踪文件不受 reset 影响，如需彻底清理请手动 `git clean`。）
+3. **`CALLBACK_URL` 自动生成**：回调地址由插件以 `site_url` 为基准自动生成（`{site_url}/api/cnb/sync-callback`），无需手动配置。请确保 `site_url` 是公网可达的 HTTPS 地址，且该路径未被防火墙/安全组拦截。
+4. **PHP CLI 路径**：后台更新进程通过 `proc_open`/`exec` 启动 `php artisan yggc:cnb-sync`。若服务器上 PHP-FPM 的 PATH 中找不到 `php`，在插件配置「PHP CLI 路径」填入绝对路径（`which php` 查询，一般为 `/usr/bin/php`）。
+5. **回调令牌一致性**：`cnb_callback_secret`（插件配置）必须与 CNB 密钥仓库 `env.yml` 中的 `CNB_CALLBACK_SECRET` 完全一致，否则回调被拒绝（403）。
+6. **流水线配置需推送**：`.cnb.yml` 的 `api_trigger_upstream_sync` 流水线定义在 CNB 仓库 master 分支，改动后需 `git push origin master` 才会生效。
 
 ## 已知问题
 
