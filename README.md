@@ -39,29 +39,31 @@
   → 后台启动 yggc:cnb-sync 命令（独立 PHP 进程）
       → 调用 CNB OpenAPI 触发 api_trigger_upstream_sync 流水线
       → 流水线在 master 分支 fetch 上游 → git merge upstream
-          ├─ 无冲突：push 回 CNB 仓库，构建成功
+          ├─ 无冲突：push 回 CNB 仓库
           └─ 有冲突：不 push，通过 CNB OpenAPI 创建 Issue 通知，构建失败
-      → 命令轮询构建状态
-          ├─ 成功：本地插件目录执行 git pull --ff-only 完成更新
-          └─ 失败：记录日志，本地代码保持不变（冲突已由流水线建 Issue）
+      → 合并成功后流水线回调插件服务器 /api/cnb/sync-callback（带回调令牌）
+      → 插件收到回调后本地执行 git pull --ff-only 完成更新
 ```
 
 ### 启用步骤
 
 1. 将本地插件目录改为 git 仓库，remote 指向你的 CNB 仓库（`https://cnb.cool/<组织>/<仓库>.git`），分支设为 `master`。
 2. 在 CNB 访问令牌页面创建一个最小权限令牌（至少需要 `repo-cnb-trigger`），填入插件配置页「CNB 流水线更新」选项卡的 **CNB 访问令牌**。
-3. 在插件配置页「CNB 流水线更新」选项卡中填写：
+3. 生成一个随机回调令牌（如 `openssl rand -hex 32`），分别填入：
+   - 插件配置页「CNB 流水线更新」的 **CNB 回调令牌**；
+   - CNB 密钥仓库 `ecustmc/key` 的 `env.yml` 中，新增 `CNB_CALLBACK_SECRET` 变量（值相同）。
+4. 在插件配置页「CNB 流水线更新」选项卡中填写：
    - **启用基于 CNB 流水线的更新**：勾选
    - **CNB 仓库**：你的 CNB 仓库路径，如 `ecustmc/yggdrasil-connect`
    - **更新分支**：`master`
    - **上游仓库 URL**：上游 git 地址，如 `https://github.com/MUAlliance/yggdrasil-connect.git`
    - **上游分支**：`main`
    - **PHP CLI 路径**（可选）：留空默认 `php`；若后台更新进程未启动，请填 PHP CLI 绝对路径（如 `/usr/bin/php`）
-4. 确保 CNB 仓库的 `.cnb.yml` 已包含 `api_trigger_upstream_sync` 流水线（本插件自带，见仓库根目录 `.cnb.yml`）。
+5. 确保 CNB 仓库的 `.cnb.yml` 已包含 `api_trigger_upstream_sync` 流水线（本插件自带，见仓库根目录 `.cnb.yml`）。
 
 > **注意**：
-> - 流水线内 push 回 CNB 仓库、创建 Issue 使用的是 CNB 流水线运行期临时令牌 `CNB_TOKEN`，权限由 CNB 平台按可信事件自动分配，无需额外配置。令牌 `cnb_token` 仅用于触发流水线和查询状态，请妥善保管。
-> - 联盟请求会立即收到 200 响应（异步受理）；实际更新在后台 `yggc:cnb-sync` 进程中完成，日志写入 `storage/logs/ygg-cnb-sync.log` 与 `yggdrasil.log`。
+> - 流水线内 push 回 CNB 仓库、创建 Issue 使用的是 CNB 流水线运行期临时令牌 `CNB_TOKEN`，权限由 CNB 平台按可信事件自动分配，无需额外配置。令牌 `cnb_token` 仅用于触发流水线，请妥善保管。
+> - 联盟请求会立即收到 200 响应（异步受理）；流水线合并成功后通过回调通知插件执行 `git pull`，不再轮询。日志写入 `storage/logs/ygg-cnb-sync.log` 与 `yggdrasil.log`。
 
 ## 已知问题
 
